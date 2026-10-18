@@ -32,7 +32,7 @@ uv run monsieur-cuisine auth login --browser
 
 After sign-in, copy the final redirect URL beginning with `lidl-com.monsieur-cuisine.companion://` and paste it into the terminal prompt. Depending on the browser, you may need to copy the URL from its address bar or redirect/error page. The CLI validates the callback's scheme, path, and OAuth `state` before exchanging the one-time authorization code.
 
-The API session is stored as `session.json` beside the active config TOML file (by default `~/.config/monsieur-cuisine/session.json`, or under `$XDG_CONFIG_HOME`). If you pass `--config PATH`, the session and companion ID are stored beside that file. The session has owner-only file permissions. The login flow always uses the mobile app's registered deep link and requests the English (UK) locale by default (`Language=en-GB`, `CountryCode=GB`). Use `--language` to request another locale, for example `uv run monsieur-cuisine auth login --language de-DE`.
+The API session is stored as `session.json` beside the active config TOML file (by default `~/.config/monsieur-cuisine/session.json`, or under `$XDG_CONFIG_HOME`). If you pass `--config PATH`, the session and companion ID are stored beside that file. The session has owner-only file permissions. The login flow always uses the mobile app's registered deep link and requests the English (UK) locale by default (`Language=en-GB`, `CountryCode=GB`). Use `--language` to request another locale, such as `uv run monsieur-cuisine auth login --language de-DE`.
 
 Check or clear the saved session:
 
@@ -47,14 +47,14 @@ uv run monsieur-cuisine auth logout
 
 ## Configuration
 
-The CLI reads TOML settings from `~/.config/monsieur-cuisine/config.toml` (or the platform's user config directory). On first run it creates this file from the packaged example. Login defaults can be edited with:
+The CLI reads TOML settings from `~/.config/monsieur-cuisine/config.toml` (or the platform's user config directory). On first run it creates this file from the packaged default config. Login defaults can be edited with:
 
 ```sh
 uv run monsieur-cuisine config
 uv run monsieur-cuisine config --edit
 ```
 
-The example config stores the `browser` setting under `[auth.login]`. Command-line options override config values. Use the root `--config PATH` option to select a different file, or `--env NAME` to merge a named `[env.NAME]` section.
+The default config stores the `browser` setting under `[auth.login]`. Command-line options override config values. Use the root `--config PATH` option to select a different file, or `--env NAME` to merge a named `[env.NAME]` section.
 
 ## Planned capabilities
 

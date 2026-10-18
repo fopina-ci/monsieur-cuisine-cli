@@ -187,7 +187,7 @@ def get_profile(config_path: Path | None = None) -> dict:
     try:
         session = json.loads(path.read_text(encoding='utf-8'))
     except FileNotFoundError as exc:
-        raise RuntimeError('No saved session. Run `example-cli login` first.') from exc
+        raise RuntimeError('No saved session. Run `monsieur-cuisine auth login` first.') from exc
     except json.JSONDecodeError as exc:
         raise RuntimeError(f'Saved session at {path} is not valid JSON.') from exc
     access_token = session.get('accessToken')

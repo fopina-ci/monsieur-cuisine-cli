@@ -22,7 +22,7 @@ class CLI(classyclick.helpers.ConfigFileMixin, classyclick.Group):
         decorators=click.version_option(version=__version__),
     )
     CONFIG_DEFAULT_NAME = 'monsieur-cuisine'
-    CONFIG_EXAMPLE_PATH = Path(__file__).with_name('config.example.toml')
+    CONFIG_EXAMPLE_PATH = Path(__file__).with_name('default-config.toml')
 
     def __call__(self):
         self.load_config()
@@ -38,7 +38,7 @@ class Login(Auth.Command):
     browser: bool = classyclick.Option(
         default=False, help='Use the system browser and paste the final mobile callback URL.'
     )
-    language: str = classyclick.Option(default='en-GB', help='Locale for Lidl sign-in (for example en-GB).')
+    language: str = classyclick.Option(default='en-GB', help='Locale for Lidl sign-in, such as en-GB.')
 
     def __call__(self):
         try:
