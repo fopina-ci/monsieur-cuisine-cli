@@ -1,78 +1,80 @@
-# python package template
+# monsieur-cuisine-cli
 
-## Content
+A command-line client for managing recipes in a monsieur-cuisine.com account.
 
-* `pytest` for tests: `make test`
-* `ruff` for linting/formatting: `make lint` (replaces both `black` and `isort`)
-* `uv` for dependency and virtualenv management (`uv sync --dev`)
-* `.github` with actions ready to be used
-    * [test](.github/workflows/test.yml) runs lint checks and unit tests
-    * [publish-dev](.github/workflows/publish-dev.yml) publishes feature branches (`dev`/`dev-*`) to:
-      * [testpypi](https://test.pypi.org) - more about this on [Notes](#feature-branch-publishing)
-      * docker image to ghcr.io - remove job if image makes no sense
-    * [publish-main](.github/workflows/publish-main.yml) publishes semver tags to:
-      * [pypi](https://pypi.org)
-      * docker image to ghcr.io
+This project is at an early stage. Account sign-in and a read-only profile command are implemented; recipe management commands are planned.
 
-## New project checklist
+The command tree is built with [classyclick](https://github.com/fopina/classyclick), a class-based wrapper around Click.
 
-* [ ] Replace folder `example` with the actual package
-* [ ] Replace `LICENSE` if MIT does not apply
-* [ ] Search the project for `# TODO` to find the (minimum list of) places that need to be changed.
-* [ ] Add PYPI tokens to secrets
-    * `PYPI_TOKEN` to publish tags to pypi
-    * `TESTPYPI_TOKEN` to publish dev branches to testpypi
-* [ ] Add [codecov](https://app.codecov.io/github/fopina/) token or enable global tokenless uploads in your profile
-    * `CODECOV_TOKEN` taken from link above
-* [ ] Replace this README.md - template below
+## Install for development
 
-## Notes
+This project uses [uv](https://docs.astral.sh/uv/) for Python environment and dependency management.
 
-### Feature branch publishing
-
-`publish-dev` workflow publishes `dev`/`dev-*` branches to [testpypi](https://test.pypi.org).
-
-Other common approach to publish dev branches is to use pre-release channels: version the package with a `rc` or `beta` suffix (such as `1.0.0-beta1`) and pypi will consider pre-release. In order to install this, the user needs to do `pip install PACKAGE --pre` otherwise the latest stable is picked up.  
-However this will "pollute" your pypi index and it still requires you to bump the version (`1.0.0-beta1` < `1.0.0`) or to install the branch using specific version.
-
-Yet another approach is to simply use an entirely different package name for the dev releases. Tensorflow does that, for example, with [tf-nightly](https://pypi.org/project/tf-nightly/).
-
-## ---
-
-# fp-github-template-example
-
-[![ci](https://github.com/fopina/python-package-template/actions/workflows/publish-main.yml/badge.svg)](https://github.com/fopina/python-package-template/actions/workflows/publish-main.yml)
-[![test](https://github.com/fopina/python-package-template/actions/workflows/test.yml/badge.svg)](https://github.com/fopina/python-package-template/actions/workflows/test.yml)
-[![codecov](https://codecov.io/github/fopina/python-package-template/graph/badge.svg)](https://codecov.io/github/fopina/python-package-template)
-[![PyPI pyversions](https://img.shields.io/pypi/pyversions/fp-github-template-example.svg)](https://pypi.org/project/fp-github-template-example/)
-[![Current version on PyPi](https://img.shields.io/pypi/v/fp-github-template-example)](https://pypi.org/project/fp-github-template-example/)
-[![Very popular](https://img.shields.io/pypi/dm/fp-github-template-example)](https://pypistats.org/packages/fp-github-template-example)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-
-CLI that echos whatever you tell it to.
-
-## Install
-
-```
-pip install fp-github-template-example
+```sh
+uv sync --dev
 ```
 
-## Usage
+## Sign in
 
-```
-$ example-cli
-Got nothing to say?
+Start the Lidl OAuth login flow used by the Monsieur Cuisine Android app:
 
-$ example-cli hello
-HELLO right back at ya!
+```sh
+uv run monsieur-cuisine auth login
 ```
 
-```python
->>> from example import demo
->>> demo.echo('ehlo')
-'EHLO right back at ya!'
+By default, login opens its own visible Chromium window through Playwright and captures the app's OAuth callback automatically. If Playwright Chromium is missing, the CLI runs `python -m playwright install chromium` automatically before opening the browser. Complete sign-in and any reCAPTCHA challenge there; the CLI then exchanges the authorization code and performs the app's encrypted API login.
+
+To use your system browser instead, pass the boolean `--browser` flag:
+
+```sh
+uv run monsieur-cuisine auth login --browser
 ```
 
-## Build
+After sign-in, copy the final redirect URL beginning with `lidl-com.monsieur-cuisine.companion://` and paste it into the terminal prompt. Depending on the browser, you may need to copy the URL from its address bar or redirect/error page. The CLI validates the callback's scheme, path, and OAuth `state` before exchanging the one-time authorization code.
 
-Check out [CONTRIBUTING.md](CONTRIBUTING.md)
+The API session is stored as `session.json` beside the active config TOML file (by default `~/.config/monsieur-cuisine/session.json`, or under `$XDG_CONFIG_HOME`). If you pass `--config PATH`, the session and companion ID are stored beside that file. The session has owner-only file permissions. The login flow always uses the mobile app's registered deep link and requests the English (UK) locale by default (`Language=en-GB`, `CountryCode=GB`). Use `--language` to request another locale, for example `uv run monsieur-cuisine auth login --language de-DE`.
+
+Check or clear the saved session:
+
+```sh
+uv run monsieur-cuisine auth status
+uv run monsieur-cuisine auth renew
+uv run monsieur-cuisine profile
+uv run monsieur-cuisine auth logout
+```
+
+`auth status` reports whether a session file is saved, the account name when available, and the OAuth token expiry in your local timezone. `auth renew` exchanges the saved OAuth refresh token and updates the OAuth access token, expiry, and rotated refresh token in the session file.
+
+## Configuration
+
+The CLI reads TOML settings from `~/.config/monsieur-cuisine/config.toml` (or the platform's user config directory). On first run it creates this file from the packaged example. Login defaults can be edited with:
+
+```sh
+uv run monsieur-cuisine config
+uv run monsieur-cuisine config --edit
+```
+
+The example config stores the `browser` setting under `[auth.login]`. Command-line options override config values. Use the root `--config PATH` option to select a different file, or `--env NAME` to merge a named `[env.NAME]` section.
+
+## Planned capabilities
+
+- Add a recipe to the account.
+- Update an existing recipe.
+- Remove a recipe from the account.
+
+## Research notes
+
+The Android app is used as a reference for the undocumented account and recipe API. Monsieur Cuisine App **1.4.2** was downloaded from the [APKMirror Monsieur Cuisine App listing](https://www.apkmirror.com/apk/lidl-digital-international-gmbh-co-kg/monsieur-cuisine-app/) and decoded to smali with [fopina/docker-dedroid](https://github.com/fopina/docker-dedroid). The APK and generated decompilation are kept in the local, gitignored `.apk-analysis/` directory; download the APK from APKMirror yourself before running the command below.
+
+```sh
+mkdir -p .apk-analysis
+# Save the APKMirror download as .apk-analysis/monsieur-cuisine-1.4.2.apk
+docker run --rm -v "$PWD/.apk-analysis:/work" fopina/dedroid apktool d \
+  /work/monsieur-cuisine-1.4.2.apk -o /work/decompiled -f
+```
+
+The decoded manifest registers `lidl-com.monsieur-cuisine.companion://login/prod` as the app's login callback. The app uses `https://accounts.lidl.com` for sign-in and `https://mc-api.tecpal.com` for its main API. Decompiled Retrofit interfaces include recipe list/detail/search routes such as `GET api/v2/recipes/page/{page}/size/{size}`, `GET api/v2/recipes/{id}`, and `GET api/v1/recipes/search/page/{page}/size/{size}`. These are implementation observations from app version 1.4.2, not a supported public API contract.
+
+## Disclaimer
+
+This is an unofficial community project and is not affiliated with or endorsed by monsieur-cuisine.com, Lidl, or their operators. Use it only with an account you are authorized to access, and follow the services' terms and applicable policies.

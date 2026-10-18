@@ -1,0 +1,4 @@
+# Defaults for `monsieur-cuisine auth login`.
+[auth.login]
+browser = false
+language = "en-GB"

@@ -3,15 +3,18 @@ requires = ["setuptools>=69.5.0,<80.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-# TODO: update with package name in pypi
-name = "fp-github-template-example"
+name = "monsieur-cuisine-cli"
 authors = [{name="Filipe Pina", email="shelf-corncob-said@duck.com" }]
 dynamic = ["version"]
-# TODO: one-line description of the package
-description = "package example"
+description = "CLI for managing recipes in a monsieur-cuisine.com account"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "classyclick>=1.0.0",
+    "click>=8.1",
+    "cryptography>=43.0",
+    "playwright>=1.50",
+]
 
 [dependency-groups]
 dev = [
@@ -23,20 +26,19 @@ dev = [
 ]
 
 [project.urls]
-# TODO: update this
-Homepage = "https://github.com/fopina/python-package-template"
+Homepage = "https://github.com/fopina/monsieur-cuisine-cli"
 
 [project.scripts]
-# TODO: remove this if package is not a CLI or update it if it is
-example-cli = "example.__main__:main"
+monsieur-cuisine = "monsieur_cuisine_cli.__main__:main"
 
 [tool.setuptools.packages.find]
-# TODO: replace example with your package name
-include = ["example*"]
+include = ["monsieur_cuisine_cli*"]
+
+[tool.setuptools.package-data]
+monsieur_cuisine_cli = ["config.example.toml"]
 
 [tool.setuptools.dynamic]
-# TODO: replace example with your package name
-version = {attr = "example.__version__"}
+version = {attr = "monsieur_cuisine_cli.__version__"}
 
 [tool.ruff]
 line-length = 120
@@ -71,8 +73,7 @@ testpaths = [
 ]
 
 [tool.coverage.run]
-# TODO: replace
-source = ["example"]
+source = ["monsieur_cuisine_cli"]
 
 [tool.coverage.report]
 show_missing = true

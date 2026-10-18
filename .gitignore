@@ -143,3 +143,5 @@ src/pdm/VERSION
 # others
 *.txt
 *.csv
+# Locally downloaded APK and generated decompilation are reference material, not project sources.
+.apk-analysis/
