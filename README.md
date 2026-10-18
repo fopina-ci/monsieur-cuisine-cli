@@ -49,13 +49,31 @@ Yet another approach is to simply use an entirely different package name for the
 [![Very popular](https://img.shields.io/pypi/dm/fp-github-template-example)](https://pypistats.org/packages/fp-github-template-example)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-CLI that echos whatever you tell it to.
+CLI for experimenting with the Monsieur Cuisine API.
 
 ## Install
 
 ```
 pip install fp-github-template-example
 ```
+
+## Sign in
+
+Install the CLI with `pip install fp-github-template-example`, then run:
+
+```sh
+example-cli login
+```
+
+The CLI opens a Playwright-controlled browser using the same OAuth client and settings as the Android app, and captures the app's deep-link return URL automatically. Install the browser engine once with `playwright install chromium` (or choose Firefox/WebKit with `--browser firefox` or `--browser webkit` and install that engine). You can try a loopback callback with `--redirect-uri http://localhost:3000`; the CLI listens on port 3000 and captures the response automatically, but Lidl may reject that URI because valid callbacks are configured server-side. The CLI exchanges the authorization code with PKCE, performs the app's encrypted API login, and stores the API session under `~/.config/monsieur-cuisine/session.json` (or `$XDG_CONFIG_HOME/monsieur-cuisine/session.json`) with owner-only permissions. The session keeps the API `refreshToken` returned by token login and, when Lidl provides one, stores its OAuth refresh token as `oauthRefreshToken`. The sign-in locale defaults to `pt-PT`; change it with `--language en-GB` if needed.
+
+To verify the saved API session with an authenticated, read-only endpoint, run:
+
+```sh
+example-cli profile
+```
+
+This calls the same `GET api/v1/users/` profile endpoint used by the app and prints the returned profile JSON.
 
 ## Usage
 
