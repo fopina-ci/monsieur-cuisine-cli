@@ -78,8 +78,8 @@ def test_login_completes_mocked_oauth_flow(tmp_path, monkeypatch):
     config = tmp_path / 'settings.toml'
     requests = []
 
-    def fake_request(url, **kwargs):
-        requests.append(url)
+    def fake_request(url, *, language):
+        requests.append((url, language))
         return {
             'authorization_endpoint': 'https://accounts.test/authorize',
             'token_endpoint': 'https://accounts.test/token',
@@ -92,18 +92,20 @@ def test_login_completes_mocked_oauth_flow(tmp_path, monkeypatch):
         params = urllib.parse.parse_qs(urllib.parse.urlparse(auth_url).query)
         return f'{auth.REDIRECT_URI}?' + urllib.parse.urlencode({'code': 'auth-code', 'state': params['state'][0]})
 
-    def fake_post_form(url, values, headers=None):
+    def fake_post_form(url, values, headers=None, *, language):
         assert url == 'https://accounts.test/token'
+        assert language == 'de-DE'
         assert values['grant_type'] == 'authorization_code'
         assert values['code'] == 'auth-code'
         assert values['redirect_uri'] == auth.REDIRECT_URI
         assert headers['Authorization'].startswith('Basic ')
         return {'access_token': 'oauth-access', 'id_token': 'oauth-id', 'refresh_token': 'refresh', 'expires_in': 60}
 
-    def fake_api_login(oauth, config_path):
+    def fake_api_login(oauth, config_path, *, language):
         assert oauth['access_token'] == 'oauth-access'
         assert oauth['id_token'] == 'oauth-id'
         assert config_path == config
+        assert language == 'de-DE'
         return {'accessToken': 'api-access'}
 
     monkeypatch.setattr(auth, '_request', fake_request)
@@ -123,7 +125,7 @@ def test_login_completes_mocked_oauth_flow(tmp_path, monkeypatch):
     assert params['CountryCode'] == ['DE']
     assert params['code_challenge_method'] == ['S256']
     assert len(params['code_challenge'][0]) == 43
-    assert requests == ['https://accounts.lidl.com/.well-known/openid-configuration']
+    assert requests == [('https://accounts.lidl.com/.well-known/openid-configuration', 'de-DE')]
     assert json.loads(session_path.read_text()) == {
         'accessToken': 'api-access',
         'oauthRefreshToken': 'refresh',
