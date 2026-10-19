@@ -101,11 +101,12 @@ def test_login_completes_mocked_oauth_flow(tmp_path, monkeypatch):
         assert headers['Authorization'].startswith('Basic ')
         return {'access_token': 'oauth-access', 'id_token': 'oauth-id', 'refresh_token': 'refresh', 'expires_in': 60}
 
-    def fake_api_login(oauth, config_path, *, language):
+    def fake_api_login(oauth, config_path, *, language, session_file):
         assert oauth['access_token'] == 'oauth-access'
         assert oauth['id_token'] == 'oauth-id'
         assert config_path == config
         assert language == 'de-DE'
+        assert session_file == 'session.json'
         return {'accessToken': 'api-access'}
 
     monkeypatch.setattr(auth, '_request', fake_request)
@@ -128,6 +129,4 @@ def test_login_completes_mocked_oauth_flow(tmp_path, monkeypatch):
     assert requests == [('https://accounts.lidl.com/.well-known/openid-configuration', 'de-DE')]
     assert json.loads(session_path.read_text()) == {
         'accessToken': 'api-access',
-        'oauthRefreshToken': 'refresh',
-        'oauthAccessTokenExpiresAt': 1060,
     }

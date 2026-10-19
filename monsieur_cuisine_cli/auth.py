@@ -110,7 +110,12 @@ def _decrypt_api_response(response: dict, aes_key: bytes) -> dict:
     return result
 
 
-def _api_token_login(oauth: dict, config_path: Path | None = None, language: str = 'en-US') -> dict:
+def _api_token_login(
+    oauth: dict,
+    config_path: Path | None = None,
+    language: str = 'en-US',
+    session_file: str = 'session.json',
+) -> dict:
     key_response = _request(f'{API_BASE}/api/v1/authkey/server/request-public-key', language=language)
     key_data = _api_data(key_response)
     encoded_key = key_data.get('serverPublicKey')
@@ -125,7 +130,7 @@ def _api_token_login(oauth: dict, config_path: Path | None = None, language: str
             'idToken': oauth['id_token'],
             'clientId': CLIENT_ID,
             # The app persists a random, dashless UUID as its device ID and uses it as companionAppId.
-            'companionAppId': _companion_id(config_path),
+            'companionAppId': _companion_id(config_path, session_file),
         },
         separators=(',', ':'),
     ).encode('utf-8')
@@ -157,15 +162,20 @@ def _api_token_login(oauth: dict, config_path: Path | None = None, language: str
     return _api_data(_decrypt_api_response(response, aes_key))
 
 
-def _session_path(config_path: Path | None = None) -> Path:
+def _session_path(config_path: Path | None = None, session_file: str = 'session.json') -> Path:
+    session_path = Path(session_file).expanduser()
+    if session_path.is_absolute():
+        return session_path
     if config_path is not None:
-        return Path(config_path).expanduser().resolve().parent / 'session.json'
-    config_home = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config'))
-    return config_home / 'monsieur-cuisine' / 'session.json'
+        directory = Path(config_path).expanduser().resolve().parent
+    else:
+        config_home = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config'))
+        directory = config_home / 'monsieur-cuisine'
+    return directory / session_path
 
 
-def _load_api_session(config_path: Path | None = None) -> dict:
-    path = _session_path(config_path)
+def _load_api_session(config_path: Path | None = None, session_file: str = 'session.json') -> dict:
+    path = _session_path(config_path, session_file)
     try:
         session = json.loads(path.read_text(encoding='utf-8'))
     except FileNotFoundError as exc:
@@ -178,9 +188,9 @@ def _load_api_session(config_path: Path | None = None) -> dict:
     return session
 
 
-def _api_access_token(config_path: Path | None = None) -> str:
-    path = _session_path(config_path)
-    session = _load_api_session(config_path)
+def _api_access_token(config_path: Path | None = None, session_file: str = 'session.json') -> str:
+    path = _session_path(config_path, session_file)
+    session = _load_api_session(config_path, session_file)
     access_token = session.get('accessToken')
     if not access_token:
         raise RuntimeError(f'Saved session at {path} does not contain an API accessToken. Run login again.')
@@ -204,12 +214,13 @@ def call_api(
     data: object | None = None,
     language: str | None = None,
     config_path: Path | None = None,
+    session_file: str = 'session.json',
 ) -> object | None:
     """Call a custom API path using the saved mobile-app API session."""
-    session = _load_api_session(config_path)
+    session = _load_api_session(config_path, session_file)
     token = session.get('accessToken')
     if not token:
-        path = _session_path(config_path)
+        path = _session_path(config_path, session_file)
         raise RuntimeError(f'Saved session at {path} does not contain an API accessToken. Run login again.')
     url = _api_url(endpoint)
     body = json.dumps(data, ensure_ascii=False).encode('utf-8') if data is not None else None
@@ -241,8 +252,8 @@ def call_api(
         return raw.decode('utf-8', errors='replace')
 
 
-def _companion_id(config_path: Path | None = None) -> str:
-    path = _session_path(config_path).with_name('companion-id')
+def _companion_id(config_path: Path | None = None, session_file: str = 'session.json') -> str:
+    path = _session_path(config_path, session_file).with_name('companion-id')
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     try:
         value = path.read_text(encoding='ascii').strip()
@@ -257,8 +268,8 @@ def _companion_id(config_path: Path | None = None) -> str:
     return value
 
 
-def _save_session(session: dict, config_path: Path | None = None) -> Path:
-    path = _session_path(config_path)
+def _save_session(session: dict, config_path: Path | None = None, session_file: str = 'session.json') -> Path:
+    path = _session_path(config_path, session_file)
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(path.parent, 0o700)
     temp = path.with_suffix('.json.tmp')
@@ -271,19 +282,27 @@ def _save_session(session: dict, config_path: Path | None = None) -> Path:
     return path
 
 
-def get_profile(config_path: Path | None = None, language: str = 'en-US') -> dict:
+def get_profile(
+    config_path: Path | None = None,
+    language: str = 'en-US',
+    session_file: str = 'session.json',
+) -> dict:
     """Fetch the authenticated user's profile using the stored API session."""
     response = _request(
         f'{API_BASE}/api/v1/users/',
-        headers={'Authorization': f'Bearer {_api_access_token(config_path)}'},
+        headers={'Authorization': f'Bearer {_api_access_token(config_path, session_file)}'},
         language=language,
     )
     return _api_data(response)
 
 
-def renew(config_path: Path | None = None, language: str = 'en-US') -> Path:
-    """Use the saved OAuth refresh token and persist the renewed OAuth tokens."""
-    path = _session_path(config_path)
+def renew(
+    config_path: Path | None = None,
+    language: str = 'en-US',
+    session_file: str = 'session.json',
+) -> Path:
+    """Refresh the saved Monsieur Cuisine API access token."""
+    path = _session_path(config_path, session_file)
     try:
         session = json.loads(path.read_text(encoding='utf-8'))
     except FileNotFoundError as exc:
@@ -291,38 +310,44 @@ def renew(config_path: Path | None = None, language: str = 'en-US') -> Path:
     except (OSError, json.JSONDecodeError) as exc:
         raise RuntimeError(f'Saved session at {path} could not be read as valid JSON.') from exc
 
-    refresh_token = session.get('oauthRefreshToken')
-    if not refresh_token:
-        raise RuntimeError('The saved session has no OAuth refresh token. Run `monsieur-cuisine auth login` again.')
+    access_token = session.get('accessToken')
+    if not access_token:
+        raise RuntimeError(f'Saved session at {path} does not contain an API accessToken. Run login again.')
 
-    discovery = _request(f'{ISSUER}/.well-known/openid-configuration', language=language)
-    token_endpoint = discovery.get('token_endpoint')
-    if not token_endpoint:
-        raise RuntimeError('OIDC discovery response is missing token_endpoint.')
-
-    basic_auth = base64.b64encode(f'{CLIENT_ID}:{CLIENT_SECRET}'.encode('utf-8')).decode('ascii')
-    oauth = _post_form(
-        token_endpoint,
-        {
-            'grant_type': 'refresh_token',
-            'client_id': CLIENT_ID,
-            'refresh_token': refresh_token,
+    url = f'{API_BASE}/api/v1/token/refresh'
+    request = urllib.request.Request(
+        url,
+        data=json.dumps({'jwt': access_token}).encode('utf-8'),
+        headers={
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': 'application/json',
+            'X-Request-ID': str(uuid.uuid4()),
         },
-        headers={'Authorization': f'Basic {basic_auth}'},
-        language=language,
+        method='POST',
     )
-    if not oauth.get('access_token'):
-        raise RuntimeError(f'OAuth refresh response did not include an access_token: {oauth}')
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            refreshed = json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode('utf-8', errors='replace')
+        raise RuntimeError(f'HTTP {exc.code} from {url}: {detail}') from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f'Could not reach {url}: {exc.reason}') from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f'Unexpected non-JSON response from {url}.') from exc
 
-    session['oauthAccessToken'] = oauth['access_token']
-    if oauth.get('id_token'):
-        session['oauthIdToken'] = oauth['id_token']
-    if oauth.get('refresh_token'):
-        session['oauthRefreshToken'] = oauth['refresh_token']
-    if oauth.get('expires_in') is not None:
-        session['oauthAccessTokenExpiresAt'] = int(time.time()) + int(oauth['expires_in'])
+    new_access_token = refreshed.get('jwt') if isinstance(refreshed, dict) else None
+    if not new_access_token:
+        raise RuntimeError(f'API token refresh response did not include a jwt: {refreshed}')
+    session['accessToken'] = new_access_token
+    _remove_oauth_credentials(session)
 
-    return _save_session(session, config_path)
+    return _save_session(session, config_path, session_file)
+
+
+def _remove_oauth_credentials(session: dict) -> None:
+    for key in ('oauthAccessToken', 'oauthIdToken', 'oauthRefreshToken', 'oauthAccessTokenExpiresAt'):
+        session.pop(key, None)
 
 
 def _callback_params(redirect: str) -> dict[str, list[str]]:
@@ -410,6 +435,7 @@ def login(
     system_browser: bool = False,
     language: str = 'en-US',
     config_path: Path | None = None,
+    session_file: str = 'session.json',
 ) -> Path:
     """Authenticate using the mobile app's OIDC and API token-login flow."""
     discovery = _request(f'{ISSUER}/.well-known/openid-configuration', language=language)
@@ -467,13 +493,10 @@ def login(
     )
     if not oauth.get('access_token') or not oauth.get('id_token'):
         raise RuntimeError(f'OAuth response did not include the tokens needed by the app API: {oauth}')
-    api_session = _api_token_login(oauth, config_path, language=language)
+    api_session = _api_token_login(oauth, config_path, language=language, session_file=session_file)
     if not api_session.get('accessToken'):
         raise RuntimeError(f'API login response did not contain an accessToken: {api_session}')
-    if oauth.get('refresh_token'):
-        api_session['oauthRefreshToken'] = oauth['refresh_token']
-    if oauth.get('expires_in') is not None:
-        api_session['oauthAccessTokenExpiresAt'] = int(time.time()) + int(oauth['expires_in'])
-    path = _save_session(api_session, config_path)
+    _remove_oauth_credentials(api_session)
+    path = _save_session(api_session, config_path, session_file)
     print(f'Logged in. API session saved to {path}')
     return path

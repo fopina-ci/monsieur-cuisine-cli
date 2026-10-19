@@ -51,18 +51,26 @@ def _recipe_page_metadata(url: str) -> tuple[str, str]:
     return recipe_match.group(1), viewer_language
 
 
-def get_recipe_from_url(url: str, config_path=None) -> dict:
+def get_recipe_from_url(url: str, config_path=None, *, session_file: str = 'session.json') -> dict:
     """Resolve a recipe page URL and fetch its API detail response."""
     recipe_id, viewer_language = _recipe_page_metadata(url)
     recipe = call_api(
         f'api/v2/recipes/{recipe_id}',
         language=viewer_language,
         config_path=config_path,
+        session_file=session_file,
     )
     return {'recipeId': recipe_id, 'viewerLang': viewer_language, 'recipe': recipe}
 
 
-def list_my_recipes(page: int = 1, size: int = 20, config_path=None, *, language: str = 'en-US') -> object | None:
+def list_my_recipes(
+    page: int = 1,
+    size: int = 20,
+    config_path=None,
+    *,
+    language: str = 'en-US',
+    session_file: str = 'session.json',
+) -> object | None:
     """Fetch one page of recipes authored by the signed-in user."""
     if page < 1:
         raise RuntimeError('Page must be 1 or greater.')
@@ -72,11 +80,23 @@ def list_my_recipes(page: int = 1, size: int = 20, config_path=None, *, language
         f'api/v1/my-recipes/page/{page}/size/{size}',
         language=language,
         config_path=config_path,
+        session_file=session_file,
     )
 
 
-def get_my_recipe(recipe_id: int, config_path=None, *, language: str = 'en-US') -> object | None:
+def get_my_recipe(
+    recipe_id: int,
+    config_path=None,
+    *,
+    language: str = 'en-US',
+    session_file: str = 'session.json',
+) -> object | None:
     """Fetch an authored recipe by its ID."""
     if recipe_id < 1:
         raise RuntimeError('Recipe ID must be a positive integer.')
-    return call_api(f'api/v1/my-recipes/{recipe_id}', language=language, config_path=config_path)
+    return call_api(
+        f'api/v1/my-recipes/{recipe_id}',
+        language=language,
+        config_path=config_path,
+        session_file=session_file,
+    )

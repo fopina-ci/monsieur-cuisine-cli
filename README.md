@@ -32,7 +32,7 @@ uv run monsieur-cuisine auth login --browser
 
 After sign-in, copy the final redirect URL beginning with `lidl-com.monsieur-cuisine.companion://` and paste it into the terminal prompt. Depending on the browser, you may need to copy the URL from its address bar or redirect/error page. The CLI validates the callback's scheme, path, and OAuth `state` before exchanging the one-time authorization code.
 
-The API session is stored as `session.json` beside the active config TOML file (by default `~/.config/monsieur-cuisine/session.json`, or under `$XDG_CONFIG_HOME`). If you pass `--config PATH`, the session and companion ID are stored beside that file. The session has owner-only file permissions. The global `--lang` option sets the locale for API requests and Lidl sign-in, and defaults to `en-US`. The login flow uses that locale for the OAuth `Language` and `CountryCode` parameters. For example: `uv run monsieur-cuisine --lang de-DE auth login`.
+The API session defaults to `session.json` beside the active config TOML file (by default `~/.config/monsieur-cuisine/session.json`, or under `$XDG_CONFIG_HOME`). Set the root `--session-file NAME` option to choose another filename; relative names resolve beside the config file, while an absolute path is used as given. The session has owner-only file permissions. The global `--lang` option sets the locale for API requests and Lidl sign-in, and defaults to `en-US`. The login flow uses that locale for the OAuth `Language` and `CountryCode` parameters. For example: `uv run monsieur-cuisine --lang de-DE auth login`.
 
 Check or clear the saved session:
 
@@ -43,7 +43,7 @@ uv run monsieur-cuisine profile
 uv run monsieur-cuisine auth logout
 ```
 
-`auth status` reports whether a session file is saved, the account name when available, and the OAuth token expiry in your local timezone. `auth renew` exchanges the saved OAuth refresh token and updates the OAuth access token, expiry, and rotated refresh token in the session file.
+`auth status` reports whether a session file is saved, the account name when available, and the API token expiry in your local timezone. `auth renew` refreshes the Monsieur Cuisine API access token using the saved API token and updates it in the session file. OAuth credentials are used only during login and are not stored in the session file.
 
 ## Call an API endpoint
 

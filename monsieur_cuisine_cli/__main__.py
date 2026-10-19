@@ -1,3 +1,4 @@
+import base64
 import json
 from datetime import datetime
 from pathlib import Path
@@ -18,7 +19,23 @@ def _selected_config_path() -> Path | None:
 def _selected_language() -> str:
     context = click.get_current_context(silent=True)
     root = context.find_root() if context else None
-    return root.params.get('lang', 'en-US') if root else 'en-US'
+    if root is None:
+        return 'en-US'
+    if root.get_parameter_source('lang') == click.core.ParameterSource.COMMANDLINE:
+        return root.params.get('lang', 'en-US')
+    config_data = root.meta.get('config_data', {})
+    return config_data.get('lang', root.params.get('lang', 'en-US'))
+
+
+def _selected_session_file() -> str:
+    context = click.get_current_context(silent=True)
+    root = context.find_root() if context else None
+    if root is None:
+        return 'session.json'
+    if root.get_parameter_source('session_file') == click.core.ParameterSource.COMMANDLINE:
+        return root.params.get('session_file', 'session.json')
+    config_data = root.meta.get('config_data', {})
+    return config_data.get('session_file', root.params.get('session_file', 'session.json'))
 
 
 class CLI(classyclick.helpers.ConfigFileMixin, classyclick.Group):
@@ -27,10 +44,16 @@ class CLI(classyclick.helpers.ConfigFileMixin, classyclick.Group):
     __config__ = classyclick.Group.Config(
         name='monsieur-cuisine',
         decorators=click.version_option(version=__version__),
+        context_settings={'terminal_width': 10_000, 'max_content_width': 10_000},
     )
     CONFIG_DEFAULT_NAME = 'monsieur-cuisine'
     CONFIG_EXAMPLE_PATH = Path(__file__).with_name('default-config.toml')
     lang: str = classyclick.Option(default='en-US', show_default=True, help='Locale for API requests and Lidl sign-in.')
+    session_file: str = classyclick.Option(
+        default='session.json',
+        show_default='session.json; relative paths resolve beside --config; absolute paths are used as given',
+        help='Session file name or path.',
+    )
 
     def __call__(self):
         self.load_config()
@@ -53,6 +76,7 @@ class Login(Auth.Command):
                 system_browser=self.browser,
                 language=_selected_language(),
                 config_path=_selected_config_path(),
+                session_file=_selected_session_file(),
             )
         except KeyboardInterrupt as exc:
             raise click.Abort() from exc
@@ -64,7 +88,7 @@ class Status(Auth.Command):
     """Check whether an account session is saved locally."""
 
     def __call__(self):
-        path = _session_path(_selected_config_path())
+        path = _session_path(_selected_config_path(), _selected_session_file())
         if not path.is_file():
             click.echo('No session is saved.')
             return
@@ -82,25 +106,36 @@ class Status(Auth.Command):
             name = ' '.join(part for part in (user.get('firstName'), user.get('lastName')) if part)
         click.echo(f'Account: {name or "name unavailable"}')
 
-        expires_at = session.get('oauthAccessTokenExpiresAt')
+        expires_at = None
+        access_token = session.get('accessToken')
+        try:
+            encoded_payload = access_token.split('.')[1]
+            encoded_payload += '=' * (-len(encoded_payload) % 4)
+            expires_at = json.loads(base64.urlsafe_b64decode(encoded_payload)).get('exp')
+        except (AttributeError, IndexError, TypeError, ValueError):
+            pass
         if expires_at is None:
-            click.echo('Token expiry: unavailable.')
+            click.echo('API token expiry: unavailable.')
             return
         try:
             expiry = datetime.fromtimestamp(int(expires_at)).astimezone()
         except (TypeError, ValueError, OverflowError, OSError):
-            click.echo('Token expiry: unavailable (invalid expiry value).')
+            click.echo('API token expiry: unavailable (invalid expiry value).')
             return
-        click.echo(f'Token expires at {expiry.isoformat(timespec="seconds")}')
+        click.echo(f'API token expires at {expiry.isoformat(timespec="seconds")}')
 
 
 class Renew(Auth.Command):
-    """Renew the saved OAuth access token using its refresh token."""
+    """Refresh the saved Monsieur Cuisine API access token."""
 
     def __call__(self):
         try:
-            path = renew(_selected_config_path(), language=_selected_language())
-            click.echo(f'OAuth token renewed. Session saved to {path}')
+            path = renew(
+                _selected_config_path(),
+                language=_selected_language(),
+                session_file=_selected_session_file(),
+            )
+            click.echo(f'API access token renewed. Session saved to {path}')
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc
 
@@ -109,7 +144,7 @@ class Logout(Auth.Command):
     """Remove the saved account session."""
 
     def __call__(self):
-        path = _session_path(_selected_config_path())
+        path = _session_path(_selected_config_path(), _selected_session_file())
         if path.exists():
             path.unlink()
             click.echo('Saved session removed.')
@@ -122,7 +157,11 @@ class Profile(CLI.Command):
 
     def __call__(self):
         try:
-            profile = get_profile(_selected_config_path(), language=_selected_language())
+            profile = get_profile(
+                _selected_config_path(),
+                language=_selected_language(),
+                session_file=_selected_session_file(),
+            )
             click.echo(json.dumps(profile, indent=2, ensure_ascii=False))
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc
@@ -139,7 +178,11 @@ class Url(Recipes.Command):
 
     def __call__(self):
         try:
-            recipe = get_recipe_from_url(self.url, _selected_config_path())
+            recipe = get_recipe_from_url(
+                self.url,
+                _selected_config_path(),
+                session_file=_selected_session_file(),
+            )
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc
         click.echo(json.dumps(recipe, indent=2, ensure_ascii=False))
@@ -158,6 +201,7 @@ class List(Recipes.Command):
                 self.size,
                 _selected_config_path(),
                 language=_selected_language(),
+                session_file=_selected_session_file(),
             )
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc
@@ -175,6 +219,7 @@ class Get(Recipes.Command):
                 self.recipe_id,
                 _selected_config_path(),
                 language=_selected_language(),
+                session_file=_selected_session_file(),
             )
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc
@@ -201,6 +246,7 @@ class Api(CLI.Command):
                 data=payload,
                 language=_selected_language(),
                 config_path=_selected_config_path(),
+                session_file=_selected_session_file(),
             )
         except json.JSONDecodeError as exc:
             raise click.ClickException(f'--data must contain valid JSON: {exc}') from exc
