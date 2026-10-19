@@ -4,9 +4,8 @@ import argparse
 import re
 from pathlib import Path
 
-# TODO: replace `example` with your package name
-VERSION_PY = Path(__file__).parent.parent / 'example' / '__init__.py'
-VERSION_RE = re.compile(r"__version__ = version = '(.*?)'")
+VERSION_PY = Path(__file__).parent.parent / 'monsieur_cuisine_cli' / '__init__.py'
+VERSION_RE = re.compile(r"__version__\s*=\s*(['\"])(.*?)\1")
 
 
 def main():
@@ -15,14 +14,14 @@ def main():
     args = p.parse_args()
 
     data = VERSION_PY.read_text()
-    version = VERSION_RE.findall(data)
-    if not version:
+    match = VERSION_RE.search(data)
+    if not match:
         raise Exception('could not find version')
-    version = version[0]
+    version = match.group(2)
     print(f'Current version: {version}')
 
     if args.set:
-        VERSION_PY.write_text(VERSION_RE.sub(f"__version__ = version = '{args.set}'", data))
+        VERSION_PY.write_text(VERSION_RE.sub(f"__version__ = '{args.set}'", data))
         print(f'New version: {args.set}')
 
 
