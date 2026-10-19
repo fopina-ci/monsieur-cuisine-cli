@@ -46,6 +46,7 @@ class Login(Auth.Command):
     browser: bool = classyclick.Option(
         default=False, help='Use the system browser and paste the final mobile callback URL.'
     )
+
     def __call__(self):
         try:
             login(
