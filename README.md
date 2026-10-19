@@ -52,7 +52,7 @@ Use `api` to call a path on the Monsieur Cuisine API with the saved app session.
 ```sh
 uv run monsieur-cuisine api api/v2/recipes/238467
 uv run monsieur-cuisine api api/v1/my-recipes/page/1/size/20
-uv run monsieur-cuisine api api/v1/example --method POST --data '{"name":"Example"}'
+uv run monsieur-cuisine api api/v1/custom-endpoint --method POST --data '{"name":"My recipe"}'
 ```
 
 Supported methods are `GET`, `POST`, `PUT`, `PATCH`, and `DELETE`. Pass an optional JSON request body with `--data`. API calls default to `Accept-Language: en-US`, matching the mobile app's default API locale. Set the global option before the command to override it, for example `uv run monsieur-cuisine --lang pt-PT api api/v1/users`. Recipe URL lookups use the viewer language discovered from the recipe page. Supply a relative API path rather than a URL; the command always targets `mc-api.tecpal.com` so the saved bearer token is not sent to another host. Endpoints requiring the app's encrypted request/response format are not automatically encrypted or decrypted by this command. Write methods call the account API directly and can change account data.
@@ -82,7 +82,7 @@ uv run monsieur-cuisine config
 uv run monsieur-cuisine config --edit
 ```
 
-The example config stores the global locale as root-level `lang = "en-US"` and the browser setting under `[auth.login]`. Command-line options override config values. Use the root `--config PATH` option to select a different file, or `--env NAME` to merge a named `[env.NAME]` section.
+The default config stores the global locale as root-level `lang = "en-US"` and the browser setting under `[auth.login]`. Command-line options override config values. Use the root `--config PATH` option to select a different file, or `--env NAME` to merge a named `[env.NAME]` section.
 
 ## Planned capabilities
 

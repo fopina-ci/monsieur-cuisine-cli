@@ -1,4 +1,4 @@
-# TODO: remove all file if no docker image is required (ie: just a python library)
+# Container image for the Monsieur Cuisine CLI.
 FROM python:3.10-slim AS base
 
 # --- builder
