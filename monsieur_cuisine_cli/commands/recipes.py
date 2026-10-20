@@ -134,9 +134,12 @@ class Get(ContextProperties, OutputProperties, Recipes.Command):
 
     recipe_id: int = classyclick.Argument(help='Recipe ID.')
     use_v1: bool = classyclick.Option(default=False, help='Use the deprecated v1 detail endpoint.')
+    backup: bool = classyclick.Option(default=False, help='Print a JSON payload compatible with recipes create/update.')
 
     def __call__(self):
         try:
+            if self.backup and self.use_v1:
+                raise RuntimeError('--backup requires the v3 recipe endpoint; remove --use-v1.')
             if self.use_v1:
                 click.echo('Warning: --use-v1 selects the deprecated API v1 detail route.', err=True)
                 recipe = recipes.get_my_recipe_v1(
@@ -146,6 +149,8 @@ class Get(ContextProperties, OutputProperties, Recipes.Command):
                 recipe = recipes.get_my_recipe(
                     self.recipe_id, self.config_path, language=self.language, session_file=self.session_file
                 )
+            if self.backup:
+                recipe = recipes.recipe_write_payload(recipe)
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc
-        emit(recipe, self.json)
+        emit(recipe, self.json or self.backup)
