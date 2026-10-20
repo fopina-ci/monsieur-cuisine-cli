@@ -46,9 +46,12 @@ class Status(ContextProperties, Auth.Command):
         click.echo('A session is saved.')
         try:
             session = json.loads(path.read_text(encoding='utf-8'))
-        except (OSError, json.JSONDecodeError):
-            click.echo('Token expiry: unavailable (could not read the session file).')
-            return
+        except (OSError, json.JSONDecodeError) as exc:
+            click.echo(f'Warning: could not read the session file; treating it as empty: {exc}', err=True)
+            session = {}
+        if not isinstance(session, dict):
+            click.echo('Warning: session file is not a JSON object; treating it as empty.', err=True)
+            session = {}
         user = session.get('user')
         name = user.get('displayName') if isinstance(user, dict) else None
         if not name and isinstance(user, dict):
