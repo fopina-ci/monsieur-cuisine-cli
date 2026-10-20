@@ -39,7 +39,7 @@ monsieur-cuisine-cli auth login --browser
 
 Copy the final redirect URL beginning with `lidl-com.monsieur-cuisine.companion://` and paste it into the terminal when prompted.
 
-The session is saved beside the config file, by default at `~/.config/monsieur-cuisine/session.json` (or under `$XDG_CONFIG_HOME`). The file is restricted to the account owner. Check or clear the saved session with:
+The session is saved beside the config file, by default at `~/.config/monsieur-cuisine/session.json` (or under `$XDG_CONFIG_HOME`). The file is restricted to the account owner. Expired API tokens are refreshed automatically and the failed request is retried. `auth renew` remains available for manual refresh. Check or clear the saved session with:
 
 ```sh
 monsieur-cuisine-cli auth status

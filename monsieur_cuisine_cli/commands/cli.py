@@ -16,6 +16,7 @@ class ContextProperties:
     session_file: str = classyclick.ContextMeta('session_file')
 
 
+@dataclass(init=False)
 class OutputProperties:
     """Options shared by commands that print API response data."""
 

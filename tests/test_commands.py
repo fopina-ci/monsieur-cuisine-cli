@@ -15,7 +15,19 @@ def test_api_command_prints_json_and_passes_options(monkeypatch, tmp_path):
     config.touch()
     result = CliRunner().invoke(
         CLI.click,
-        ['--config', str(config), '--lang', 'de-DE', 'api', 'api/v2/test', '--method', 'POST', '--data', '{"x": 1}'],
+        [
+            '--config',
+            str(config),
+            '--lang',
+            'de-DE',
+            'api',
+            'api/v2/test',
+            '--method',
+            'POST',
+            '--data',
+            '{"x": 1}',
+            '--json',
+        ],
     )
 
     assert result.exit_code == 0

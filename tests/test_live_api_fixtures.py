@@ -25,18 +25,18 @@ def test_profile_command_matches_captured_response_shape(monkeypatch):
     expected = _fixture('profile.json')
     monkeypatch.setattr(auth, 'get_profile', lambda *args, **kwargs: expected)
 
-    _assert_cli_json(['profile'], expected)
+    _assert_cli_json(['profile', '--json'], expected)
 
 
 def test_recipes_list_command_matches_captured_response_shape(monkeypatch):
     expected = _fixture('recipes-list.json')
     monkeypatch.setattr(recipes, 'list_my_recipes', lambda *args, **kwargs: expected)
 
-    _assert_cli_json(['recipes', 'list'], expected)
+    _assert_cli_json(['recipes', 'list', '--json'], expected)
 
 
 def test_recipes_get_command_matches_captured_response_shape(monkeypatch):
     expected = _fixture('recipe-get.json')
     monkeypatch.setattr(recipes, 'get_my_recipe', lambda *args, **kwargs: expected)
 
-    _assert_cli_json(['recipes', 'get', '1'], expected)
+    _assert_cli_json(['recipes', 'get', '1', '--json'], expected)
