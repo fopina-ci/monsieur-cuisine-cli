@@ -69,6 +69,8 @@ uv run monsieur-cuisine recipes create --data '{"status":"draft","source":"membe
 uv run monsieur-cuisine recipes update 238467 --data '{"status":"draft","source":"member","languageLocale":"pt-PT","deviceTypeIds":[13],"title":"Updated recipe","servingSizes":[]}'
 ```
 
+Add `--thumbnail PATH` and/or `--details-image PATH` to `recipes create` or `recipes update` to upload local image files as landscape recipe media. The CLI requests a temporary upload URL, uploads the bytes directly to storage, waits for the returned media ID to become ready, then adds it to `thumbnail.landscapeMediaId` or `detailsImage.landscapeMediaId` in the recipe payload. MIME types are inferred from the file extension.
+
 `recipes list` and `recipes get` use the observed authenticated v3 routes by default. The list request includes page and size, sorts by title ascending, and asks for draft, pending, private-publish, publish, and rejected recipes with an empty search query. Pass `--use-v1` to either command to use its deprecated v1 route; the CLI prints a warning when this flag is set. These direct API requests use the saved mobile-app bearer token. The global `--lang` option selects another locale.
 
 Use `recipes url` to resolve a public recipe page URL. It extracts `recipeId` and the viewer locale from the page, calls the public recipe detail endpoint, and returns the ID, locale, and API response:

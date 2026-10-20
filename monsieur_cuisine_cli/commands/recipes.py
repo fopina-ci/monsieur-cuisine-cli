@@ -28,10 +28,24 @@ class Create(ContextProperties, Recipes.Command):
     """Create a recipe from a JSON payload using the v3 API."""
 
     data: str = classyclick.Option(required=True, help='Recipe payload as a JSON object.')
+    thumbnail: str = classyclick.Option(default=None, help='Upload a landscape thumbnail image file.')
+    details_image: str = classyclick.Option(default=None, help='Upload a landscape details image file.')
 
     def __call__(self):
         try:
             payload = json.loads(self.data)
+            if self.thumbnail:
+                media_id = recipes.upload_recipe_image(
+                    self.thumbnail, 'thumbnail', self.config_path,
+                    language=self.language, session_file=self.session_file,
+                )
+                recipes.attach_uploaded_image(payload, 'thumbnail', media_id)
+            if self.details_image:
+                media_id = recipes.upload_recipe_image(
+                    self.details_image, 'details', self.config_path,
+                    language=self.language, session_file=self.session_file,
+                )
+                recipes.attach_uploaded_image(payload, 'detailsImage', media_id)
             recipe = recipes.create_my_recipe(
                 payload, self.config_path, language=self.language, session_file=self.session_file
             )
@@ -47,10 +61,24 @@ class Update(ContextProperties, Recipes.Command):
 
     recipe_id: int = classyclick.Argument(help='Recipe ID.')
     data: str = classyclick.Option(required=True, help='Recipe payload as a JSON object.')
+    thumbnail: str = classyclick.Option(default=None, help='Upload a landscape thumbnail image file.')
+    details_image: str = classyclick.Option(default=None, help='Upload a landscape details image file.')
 
     def __call__(self):
         try:
             payload = json.loads(self.data)
+            if self.thumbnail:
+                media_id = recipes.upload_recipe_image(
+                    self.thumbnail, 'thumbnail', self.config_path,
+                    language=self.language, session_file=self.session_file,
+                )
+                recipes.attach_uploaded_image(payload, 'thumbnail', media_id)
+            if self.details_image:
+                media_id = recipes.upload_recipe_image(
+                    self.details_image, 'details', self.config_path,
+                    language=self.language, session_file=self.session_file,
+                )
+                recipes.attach_uploaded_image(payload, 'detailsImage', media_id)
             recipe = recipes.update_my_recipe(
                 self.recipe_id,
                 payload,
