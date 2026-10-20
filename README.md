@@ -58,12 +58,16 @@ monsieur-cuisine-cli recipes list --page 2 --size 50
 monsieur-cuisine-cli recipes get 238467
 ```
 
+By default, recipe lists print a compact title, ID, and status summary, while recipe details show the main fields. Add `--json` to `profile`, `api`, `recipes url`, `recipes list`, `recipes get`, `recipes create`, or `recipes update` to print normalized response data as JSON.
+
 Create and update recipes by passing JSON data:
 
 ```sh
 monsieur-cuisine-cli recipes create --data '{"status":"draft","source":"member","languageLocale":"pt-PT","deviceTypeIds":[13],"title":"My recipe","servingSizes":[]}'
 monsieur-cuisine-cli recipes update 238467 --data '{"status":"draft","source":"member","languageLocale":"pt-PT","deviceTypeIds":[13],"title":"Updated recipe","servingSizes":[]}'
 ```
+
+Add `--thumbnail PATH` and/or `--details-image PATH` to upload local recipe images during creation or update. The CLI uploads them and adds the returned media IDs to the recipe payload.
 
 Recipe listing and retrieval use the observed authenticated v3 routes by default. `--use-v1` selects the deprecated v1 routes for those commands. Recipe writes send data directly to the account API; use valid IDs and include fields you want to retain in an update.
 

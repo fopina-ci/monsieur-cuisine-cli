@@ -16,6 +16,12 @@ class ContextProperties:
     session_file: str = classyclick.ContextMeta('session_file')
 
 
+class OutputProperties:
+    """Options shared by commands that print API response data."""
+
+    json: bool = classyclick.Option(default=False, help='Print response data as JSON for scripting.')
+
+
 class CLI(classyclick.helpers.ConfigFileMixin, classyclick.Group):
     """Manage recipes in a monsieur-cuisine.com account."""
 

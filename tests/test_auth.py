@@ -55,10 +55,11 @@ def test_companion_id_is_created_once_and_session_is_private(tmp_path):
     assert len(companion_id) == 32
     assert auth._companion_id(config) == companion_id
 
+    os.chmod(tmp_path, 0o755)
     session_path = auth._save_session({'accessToken': 'secret'}, config)
     assert json.loads(session_path.read_text()) == {'accessToken': 'secret'}
     assert os.stat(session_path).st_mode & 0o777 == 0o600
-    assert os.stat(tmp_path).st_mode & 0o777 == 0o700
+    assert os.stat(tmp_path).st_mode & 0o777 == 0o755
 
 
 def test_callback_params_accepts_expected_deep_link():
@@ -99,7 +100,8 @@ def test_login_completes_mocked_oauth_flow(tmp_path, monkeypatch):
         assert values['code'] == 'auth-code'
         assert values['redirect_uri'] == auth.REDIRECT_URI
         assert headers['Authorization'].startswith('Basic ')
-        return {'access_token': 'oauth-access', 'id_token': 'oauth-id', 'refresh_token': 'refresh', 'expires_in': 60}
+        id_token = f"header.{auth._b64url(json.dumps({'nonce': 'fixed-state'}).encode())}.signature"
+        return {'access_token': 'oauth-access', 'id_token': id_token, 'refresh_token': 'refresh', 'expires_in': 60}
 
     def fake_api_login(oauth, config_path, *, language, session_file):
         assert oauth['access_token'] == 'oauth-access'

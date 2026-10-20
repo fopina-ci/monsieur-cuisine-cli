@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import logging
 import os
 import secrets
 import string
@@ -31,6 +32,7 @@ API_BASE = 'https://mc-api.tecpal.com'
 KEY_ID = '351756051523999'
 PREPROD_KEY = '3afe90d2-7b78-434c-a174-8274c370dc11'
 APP_VERSION_CODE = '10040213'
+logger = logging.getLogger(__name__)
 
 
 def _b64url(value: bytes) -> str:
@@ -271,7 +273,6 @@ def _companion_id(config_path: Path | None = None, session_file: str = 'session.
 def _save_session(session: dict, config_path: Path | None = None, session_file: str = 'session.json') -> Path:
     path = _session_path(config_path, session_file)
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    os.chmod(path.parent, 0o700)
     temp = path.with_suffix('.json.tmp')
     fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, 'w', encoding='utf-8') as output:
@@ -308,7 +309,12 @@ def renew(
     except FileNotFoundError as exc:
         raise RuntimeError('No saved session. Run `monsieur-cuisine auth login` first.') from exc
     except (OSError, json.JSONDecodeError) as exc:
-        raise RuntimeError(f'Saved session at {path} could not be read as valid JSON.') from exc
+        logger.warning('Saved session at %s could not be read; treating it as empty: %s', path, exc)
+        session = {}
+
+    if not isinstance(session, dict):
+        logger.warning('Saved session at %s is not a JSON object; treating it as empty.', path)
+        session = {}
 
     access_token = session.get('accessToken')
     if not access_token:
@@ -493,6 +499,15 @@ def login(
     )
     if not oauth.get('access_token') or not oauth.get('id_token'):
         raise RuntimeError(f'OAuth response did not include the tokens needed by the app API: {oauth}')
+    try:
+        encoded_payload = oauth['id_token'].split('.')[1]
+        encoded_payload += '=' * (-len(encoded_payload) % 4)
+        id_token_claims = json.loads(base64.urlsafe_b64decode(encoded_payload))
+    except (AttributeError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise RuntimeError('OAuth response contained an invalid ID token.') from exc
+    returned_nonce = id_token_claims.get('nonce') if isinstance(id_token_claims, dict) else None
+    if not isinstance(returned_nonce, str) or not secrets.compare_digest(returned_nonce, nonce):
+        raise RuntimeError('OAuth ID token nonce did not match. Start login again.')
     api_session = _api_token_login(oauth, config_path, language=language, session_file=session_file)
     if not api_session.get('accessToken'):
         raise RuntimeError(f'API login response did not contain an accessToken: {api_session}')

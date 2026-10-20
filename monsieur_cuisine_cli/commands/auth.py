@@ -6,7 +6,8 @@ import classyclick
 import click
 
 from ..api import auth
-from .cli import CLI, ContextProperties
+from .cli import CLI, ContextProperties, OutputProperties
+from .output import emit
 
 
 class Auth(CLI.SubGroup):
@@ -45,9 +46,12 @@ class Status(ContextProperties, Auth.Command):
         click.echo('A session is saved.')
         try:
             session = json.loads(path.read_text(encoding='utf-8'))
-        except (OSError, json.JSONDecodeError):
-            click.echo('Token expiry: unavailable (could not read the session file).')
-            return
+        except (OSError, json.JSONDecodeError) as exc:
+            click.echo(f'Warning: could not read the session file; treating it as empty: {exc}', err=True)
+            session = {}
+        if not isinstance(session, dict):
+            click.echo('Warning: session file is not a JSON object; treating it as empty.', err=True)
+            session = {}
         user = session.get('user')
         name = user.get('displayName') if isinstance(user, dict) else None
         if not name and isinstance(user, dict):
@@ -93,12 +97,12 @@ class Logout(ContextProperties, Auth.Command):
             click.echo('No saved session to remove.')
 
 
-class Profile(ContextProperties, CLI.Command):
+class Profile(ContextProperties, OutputProperties, CLI.Command):
     """Fetch the authenticated account profile."""
 
     def __call__(self):
         try:
             profile = auth.get_profile(self.config_path, language=self.language, session_file=self.session_file)
-            click.echo(json.dumps(profile, indent=2, ensure_ascii=False))
+            emit(profile, self.json)
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc

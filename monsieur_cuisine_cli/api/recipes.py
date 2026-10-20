@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import mimetypes
 import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
+from pathlib import Path
 
 from . import auth
 
@@ -13,12 +17,102 @@ _RECIPE_ID = re.compile(r'["\']?recipeId["\']?\s*:\s*["\']?(\d+)', re.IGNORECASE
 _VIEWER_LANG = re.compile(
     r'["\']?viewer-lang["\']?\s*[:=]\s*["\']?([A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*)', re.IGNORECASE
 )
+_MEDIA_READY_TIMEOUT = 60
+_MEDIA_POLL_INTERVAL = 2
 
 
 def _call_api(*args, **kwargs) -> object | None:
     """Call the API and unwrap its top-level data envelope."""
     response = auth.call_api(*args, **kwargs)
     return response.get('data', response) if isinstance(response, dict) else response
+
+
+def upload_recipe_image(
+    path: str | Path,
+    image_type: str,
+    config_path=None,
+    *,
+    language: str = 'en-US',
+    session_file: str = 'session.json',
+) -> int:
+    """Upload an image and return its media ID once it is ready for recipe use."""
+    if image_type not in {'thumbnail', 'details'}:
+        raise RuntimeError("Image type must be 'thumbnail' or 'details'.")
+    image_path = Path(path).expanduser()
+    try:
+        content = image_path.read_bytes()
+    except OSError as exc:
+        raise RuntimeError(f'Could not read image file {image_path}: {exc.strerror or exc}.') from exc
+    if not content:
+        raise RuntimeError(f'Image file is empty: {image_path}')
+
+    mime_type, _ = mimetypes.guess_type(image_path.name)
+    if not mime_type or not mime_type.startswith('image/'):
+        raise RuntimeError(f'Could not determine an image MIME type for {image_path}.')
+    suffix = image_path.suffix.lower()
+    if not suffix:
+        suffix = mimetypes.guess_extension(mime_type) or '.img'
+    file_name = f'{uuid.uuid4()}_{image_type}{suffix}'
+    upload = _call_api(
+        'api/v1/media/image/upload-url',
+        method='POST',
+        data={'fileName': file_name, 'mimeType': mime_type},
+        language=language,
+        config_path=config_path,
+        session_file=session_file,
+    )
+    if not isinstance(upload, dict) or not isinstance(upload.get('url'), str) or not upload.get('mediaId'):
+        raise RuntimeError('Media upload URL response did not include a URL and media ID.')
+
+    request = urllib.request.Request(
+        upload['url'], data=content, headers={'Content-Type': mime_type}, method='PUT'
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            if response.status < 200 or response.status >= 300:
+                raise RuntimeError(f'Image upload failed with HTTP {response.status}.')
+    except urllib.error.HTTPError as exc:
+        # Do not include the signed URL in errors; it grants temporary upload access.
+        raise RuntimeError(f'Image upload failed with HTTP {exc.code}.') from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f'Could not upload image: {exc.reason}') from exc
+
+    media_id = upload['mediaId']
+    deadline = time.monotonic() + _MEDIA_READY_TIMEOUT
+    while True:
+        query = urllib.parse.urlencode({'ids[]': media_id})
+        media_result = _call_api(
+            f'api/v1/media?{query}',
+            language=language,
+            config_path=config_path,
+            session_file=session_file,
+        )
+        media_items = media_result.get('media', []) if isinstance(media_result, dict) else []
+        item = next(
+            (
+                item
+                for item in media_items
+                if isinstance(item, dict) and str(item.get('id')) == str(media_id)
+            ),
+            None,
+        )
+        if item and str(item.get('uploadStatus')) == '3':
+            return int(media_id)
+        if item and str(item.get('uploadStatus')) not in {'', '0', '1', '2', 'None'}:
+            raise RuntimeError(f'Media upload processing failed for media ID {media_id}.')
+        if time.monotonic() >= deadline:
+            raise RuntimeError(f'Media ID {media_id} was not ready after {_MEDIA_READY_TIMEOUT} seconds.')
+        time.sleep(_MEDIA_POLL_INTERVAL)
+
+
+def attach_uploaded_image(payload: dict, field: str, media_id: int) -> None:
+    if not isinstance(payload, dict):
+        raise RuntimeError('Recipe payload must be a JSON object.')
+    image = payload.setdefault(field, {})
+    if not isinstance(image, dict):
+        raise RuntimeError(f'{field} must be an object when uploading an image.')
+    image['landscapeMediaId'] = media_id
+    image['landscapeIsAiGenerated'] = False
 
 
 def _validate_recipe_write_payload(payload: dict) -> None:
