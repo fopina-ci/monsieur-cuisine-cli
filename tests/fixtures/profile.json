@@ -1,0 +1,23 @@
+{
+  "user": {
+    "id": 1,
+    "displayName": "fixture-user",
+    "email": "user@example.invalid",
+    "firstName": "Fixture",
+    "lastName": "User",
+    "avatar": null,
+    "productPrivacyOptIn": true,
+    "allProductOptInViewed": true,
+    "userPrivacyOptIn": true,
+    "userPrivacyAllProductOptIn": true,
+    "privacyViewed": true,
+    "productPrivacyAllProductOptIn": true,
+    "consentLanguage": null,
+    "consentPolicyVersion": null,
+    "legacyUid": null,
+    "displayInfoUpdatedAt": "2026-01-01 00:00:00",
+    "alerts": {
+      "rejectedRecipeCount": 0
+    }
+  }
+}

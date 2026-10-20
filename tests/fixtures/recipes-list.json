@@ -1,0 +1,72 @@
+{
+  "currentPage": 1,
+  "language": "pt-PT",
+  "total": 1,
+  "totalPage": 1,
+  "pageSize": 20,
+  "resultNo": 1,
+  "recipes": [
+    {
+      "languageLocale": "pt-PT",
+      "author": {
+        "id": 1,
+        "name": "Example",
+        "avatar": null,
+        "tagId": "TAG123"
+      },
+      "status": "draft",
+      "title": "Example recipe",
+      "source": "member",
+      "deviceTypes": [
+        {
+          "id": 1,
+          "name": "Example",
+          "code": "MC3.0",
+          "order": 4
+        }
+      ],
+      "complexity": {
+        "id": 1,
+        "name": "Example",
+        "level": 1,
+        "order": 1
+      },
+      "categories": [
+        {
+          "id": 1,
+          "name": "Example",
+          "order": 11
+        }
+      ],
+      "sharingUrl": null,
+      "translationId": 2,
+      "firstPublishedAt": null,
+      "lastPublishedAt": null,
+      "createdAt": "2026-01-01 00:00:00",
+      "updatedAt": "2026-01-01 00:00:00",
+      "preparationTime": 1,
+      "readyInTime": 1,
+      "rating": 0,
+      "totalRating": 0,
+      "popularity": 0.25,
+      "media": null,
+      "parentId": null,
+      "copyrightWatermark": null,
+      "id": 1,
+      "slug": "example-recipe",
+      "thumbnail": {
+        "landscapeMedia": {
+          "id": 1,
+          "url": "https://example.invalid/media",
+          "isAiGenerated": false
+        },
+        "portraitMedia": null
+      },
+      "detailsImage": null,
+      "allowSocialSharing": false,
+      "isResubmit": false,
+      "recipeMetas": [],
+      "translationStatus": "empty"
+    }
+  ]
+}

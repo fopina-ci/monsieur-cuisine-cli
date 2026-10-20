@@ -3,7 +3,7 @@ import json
 import classyclick
 import click
 
-from ..auth import call_api
+from ..api import auth
 from .cli import CLI, ContextProperties
 
 
@@ -21,7 +21,7 @@ class Api(ContextProperties, CLI.Command):
     def __call__(self):
         try:
             payload = json.loads(self.data) if self.data is not None else None
-            result = call_api(
+            result = auth.call_api(
                 self.endpoint,
                 method=self.method,
                 data=payload,

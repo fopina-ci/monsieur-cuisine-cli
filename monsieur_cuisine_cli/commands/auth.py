@@ -5,7 +5,7 @@ from datetime import datetime
 import classyclick
 import click
 
-from ..auth import _session_path, get_profile, login, renew
+from ..api import auth
 from .cli import CLI, ContextProperties
 
 
@@ -22,7 +22,7 @@ class Login(ContextProperties, Auth.Command):
 
     def __call__(self):
         try:
-            login(
+            auth.login(
                 system_browser=self.browser,
                 language=self.language,
                 config_path=self.config_path,
@@ -38,7 +38,7 @@ class Status(ContextProperties, Auth.Command):
     """Check whether an account session is saved locally."""
 
     def __call__(self):
-        path = _session_path(self.config_path, self.session_file)
+        path = auth._session_path(self.config_path, self.session_file)
         if not path.is_file():
             click.echo('No session is saved.')
             return
@@ -75,7 +75,7 @@ class Renew(ContextProperties, Auth.Command):
 
     def __call__(self):
         try:
-            path = renew(self.config_path, language=self.language, session_file=self.session_file)
+            path = auth.renew(self.config_path, language=self.language, session_file=self.session_file)
             click.echo(f'API access token renewed. Session saved to {path}')
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc
@@ -85,7 +85,7 @@ class Logout(ContextProperties, Auth.Command):
     """Remove the saved account session."""
 
     def __call__(self):
-        path = _session_path(self.config_path, self.session_file)
+        path = auth._session_path(self.config_path, self.session_file)
         if path.exists():
             path.unlink()
             click.echo('Saved session removed.')
@@ -98,7 +98,7 @@ class Profile(ContextProperties, CLI.Command):
 
     def __call__(self):
         try:
-            profile = get_profile(self.config_path, language=self.language, session_file=self.session_file)
+            profile = auth.get_profile(self.config_path, language=self.language, session_file=self.session_file)
             click.echo(json.dumps(profile, indent=2, ensure_ascii=False))
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc

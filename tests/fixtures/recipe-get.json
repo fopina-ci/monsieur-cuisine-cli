@@ -1,0 +1,131 @@
+{
+  "recipe": {
+    "isResubmit": false,
+    "id": 1,
+    "languageLocale": "pt-PT",
+    "author": {
+      "id": 1,
+      "name": "Example",
+      "avatar": null,
+      "tagId": "TAG123"
+    },
+    "status": "draft",
+    "title": "Example recipe",
+    "source": "member",
+    "slug": "example-recipe",
+    "description": "Example description",
+    "hintsAndTips": null,
+    "complexity": {
+      "id": 1,
+      "name": "Example",
+      "level": 1,
+      "order": 1
+    },
+    "deviceTypes": [
+      {
+        "id": 1,
+        "name": "Example",
+        "code": "MC3.0",
+        "order": 4
+      }
+    ],
+    "thumbnail": {
+      "landscapeMedia": {
+        "id": 1,
+        "url": "https://example.invalid/media",
+        "isAiGenerated": false
+      },
+      "portraitMedia": null
+    },
+    "detailsImage": {
+      "landscapeMedia": {
+        "id": 1,
+        "url": "https://example.invalid/media",
+        "isAiGenerated": false
+      },
+      "portraitMedia": null
+    },
+    "categories": [
+      {
+        "id": 1,
+        "name": "Example",
+        "order": 11
+      }
+    ],
+    "nutrients": [
+      {
+        "name": "Example",
+        "unit": "kCal",
+        "amount": 100,
+        "amountFloat": 100
+      }
+    ],
+    "servingSizes": [
+      {
+        "id": 1,
+        "amount": 2,
+        "maxServing": null,
+        "instruction": "",
+        "unit": "frasco",
+        "isDefault": true,
+        "preparationTime": 1,
+        "readyInTime": 1,
+        "ingredientGroups": [],
+        "steps": [
+          {
+            "id": 1,
+            "title": "Example recipe",
+            "description": "Example description",
+            "duration": null,
+            "mode": null,
+            "videoMedia": null,
+            "order": 0
+          },
+          {
+            "id": 1,
+            "title": "Example recipe",
+            "description": "Example description",
+            "duration": null,
+            "mode": {
+              "type": "slow_cooking",
+              "modules": null,
+              "modeSetting": null,
+              "deviceSettings": [
+                {
+                  "time": 900,
+                  "order": 0,
+                  "temperature": 50
+                }
+              ]
+            },
+            "videoMedia": null,
+            "order": 1
+          }
+        ],
+        "modules": [],
+        "order": 0
+      }
+    ],
+    "translationId": 2,
+    "firstPublishedAt": null,
+    "lastPublishedAt": null,
+    "createdAt": "2026-01-01 00:00:00",
+    "updatedAt": "2026-01-01 00:00:00",
+    "preparationTime": 1,
+    "readyInTime": 1,
+    "rating": 0,
+    "totalRating": 0,
+    "sharingUrl": null,
+    "popularity": 0.25,
+    "media": null,
+    "copyrightWatermark": null,
+    "mediaArchiveUrl": null,
+    "mediaArchiveMd5": null,
+    "allowSocialSharing": false,
+    "mediaArchiveStatus": null,
+    "mediaSourceHash": null,
+    "recipeMetas": [],
+    "translationStatus": "empty"
+  },
+  "recipeMetas": []
+}

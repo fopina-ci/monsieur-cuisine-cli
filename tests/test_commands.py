@@ -9,7 +9,7 @@ def test_api_command_prints_json_and_passes_options(monkeypatch, tmp_path):
     from monsieur_cuisine_cli.commands import api
 
     calls = []
-    monkeypatch.setattr(api, 'call_api', lambda *args, **kwargs: calls.append((args, kwargs)) or {'ok': True})
+    monkeypatch.setattr(api.auth, 'call_api', lambda *args, **kwargs: calls.append((args, kwargs)) or {'ok': True})
 
     config = tmp_path / 'config.toml'
     config.touch()
@@ -34,7 +34,7 @@ def test_api_command_reports_invalid_json():
 
 
 def test_recipes_get_reports_runtime_error(monkeypatch):
-    from monsieur_cuisine_cli.commands import recipes
+    from monsieur_cuisine_cli.api import recipes
 
     def fail(*args, **kwargs):
         raise RuntimeError('session is missing')

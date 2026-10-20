@@ -7,7 +7,7 @@ import pytest
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from monsieur_cuisine_cli import auth
+from monsieur_cuisine_cli.api import auth
 
 
 def test_api_data_unwraps_envelopes():
