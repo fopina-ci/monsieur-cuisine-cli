@@ -1,6 +1,8 @@
 import base64
+import io
 import json
 import os
+import urllib.error
 import urllib.parse
 
 import pytest
@@ -60,6 +62,84 @@ def test_companion_id_is_created_once_and_session_is_private(tmp_path):
     assert json.loads(session_path.read_text()) == {'accessToken': 'secret'}
     assert os.stat(session_path).st_mode & 0o777 == 0o600
     assert os.stat(tmp_path).st_mode & 0o777 == 0o755
+
+
+def test_call_api_renews_expired_token_and_retries_request(tmp_path, monkeypatch):
+    config = tmp_path / 'settings.toml'
+    auth._save_session({'accessToken': 'expired-token'}, config)
+    requests = []
+
+    class Response:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def read(self):
+            return b'{"data":{"ok":true}}'
+
+    def fake_urlopen(request, timeout):
+        requests.append(request)
+        if len(requests) == 1:
+            raise urllib.error.HTTPError(
+                request.full_url, 401, 'Unauthorized', {}, io.BytesIO(b'{"message":"Token expired"}')
+            )
+        return Response()
+
+    def fake_renew(config_path, *, session_file):
+        auth._save_session({'accessToken': 'fresh-token'}, config_path, session_file)
+        return auth._session_path(config_path, session_file)
+
+    monkeypatch.setattr(auth.urllib.request, 'urlopen', fake_urlopen)
+    monkeypatch.setattr(auth, 'renew', fake_renew)
+
+    result = auth.call_api('api/v2/test', method='POST', data={'value': 1}, config_path=config)
+
+    assert result == {'data': {'ok': True}}
+    assert len(requests) == 2
+    assert requests[0].get_method() == requests[1].get_method() == 'POST'
+    assert requests[0].data == requests[1].data
+    assert requests[0].get_header('Authorization') == 'Bearer expired-token'
+    assert requests[1].get_header('Authorization') == 'Bearer fresh-token'
+    assert json.loads(auth._session_path(config).read_text())['accessToken'] == 'fresh-token'
+
+
+def test_profile_renews_expired_token_and_retries_request(tmp_path, monkeypatch):
+    config = tmp_path / 'settings.toml'
+    auth._save_session({'accessToken': 'expired-token'}, config)
+    requests = []
+
+    class Response:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def read(self):
+            return b'{"data":{"user":{"id":1}}}'
+
+    def fake_urlopen(request, timeout):
+        requests.append(request)
+        if len(requests) == 1:
+            raise urllib.error.HTTPError(request.full_url, 401, 'Unauthorized', {}, io.BytesIO(b'token expired'))
+        return Response()
+
+    def fake_renew(config_path, *, session_file):
+        auth._save_session({'accessToken': 'fresh-token'}, config_path, session_file)
+        return auth._session_path(config_path, session_file)
+
+    monkeypatch.setattr(auth.urllib.request, 'urlopen', fake_urlopen)
+    monkeypatch.setattr(auth, 'renew', fake_renew)
+
+    assert auth.get_profile(config_path=config) == {'user': {'id': 1}}
+    assert len(requests) == 2
+    assert requests[1].get_header('Authorization') == 'Bearer fresh-token'
 
 
 def test_callback_params_accepts_expected_deep_link():

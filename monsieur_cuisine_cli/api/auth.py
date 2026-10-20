@@ -45,6 +45,8 @@ def _request(
     data: bytes | None = None,
     headers: dict[str, str] | None = None,
     language: str = 'en-US',
+    config_path: Path | None = None,
+    session_file: str = 'session.json',
 ) -> dict:
     request_headers = {
         'Accept-Language': language,
@@ -57,13 +59,10 @@ def _request(
         request_headers.update(headers)
     request = urllib.request.Request(url, data=data, headers=request_headers)
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            result = json.loads(response.read())
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode('utf-8', errors='replace')
-        raise RuntimeError(f'HTTP {exc.code} from {url}: {detail}') from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f'Could not reach {url}: {exc.reason}') from exc
+        raw = _authenticated_response(request, config_path, session_file)
+        result = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f'Unexpected non-JSON response from {url}.') from exc
     if not isinstance(result, dict):
         raise RuntimeError(f'Unexpected response from {url}')
     return result
@@ -209,6 +208,44 @@ def _api_url(endpoint: str) -> str:
     return f'{API_BASE}/{parsed.path.lstrip("/")}' + (f'?{parsed.query}' if parsed.query else '')
 
 
+def _authenticated_response(
+    request: urllib.request.Request,
+    config_path: Path | None = None,
+    session_file: str = 'session.json',
+) -> bytes:
+    """Send an API request, renewing an expired API token once and retrying it."""
+    for attempt in range(2):
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                raw = response.read()
+                status = response.status
+        except urllib.error.HTTPError as exc:
+            raw = exc.read()
+            status = exc.code
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f'Could not reach {request.full_url}: {exc.reason}') from exc
+
+        if b'token expired' in raw.lower() and attempt == 0 and request.full_url.startswith(API_BASE):
+            headers = dict(request.header_items())
+            auth_header = next((key for key in headers if key.lower() == 'authorization'), None)
+            if auth_header and headers[auth_header].lower().startswith('bearer '):
+                token_path = urllib.parse.urlsplit(request.full_url).path
+                if token_path != '/api/v1/token/refresh':
+                    renew(config_path, session_file=session_file)
+                    new_token = _api_access_token(config_path, session_file)
+                    headers[auth_header] = f'Bearer {new_token}'
+                    request = urllib.request.Request(
+                        request.full_url, data=request.data, headers=headers, method=request.get_method()
+                    )
+                    continue
+
+        if status >= 400:
+            detail = raw.decode('utf-8', errors='replace')
+            raise RuntimeError(f'HTTP {status} from {request.full_url}: {detail}')
+        return raw
+    return raw
+
+
 def call_api(
     endpoint: str,
     *,
@@ -237,14 +274,7 @@ def call_api(
     if body is not None:
         headers['Content-Type'] = 'application/json'
     request = urllib.request.Request(url, data=body, headers=headers, method=method.upper())
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            raw = response.read()
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode('utf-8', errors='replace')
-        raise RuntimeError(f'HTTP {exc.code} from {url}: {detail}') from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f'Could not reach {url}: {exc.reason}') from exc
+    raw = _authenticated_response(request, config_path, session_file)
 
     if not raw:
         return None
@@ -293,6 +323,8 @@ def get_profile(
         f'{API_BASE}/api/v1/users/',
         headers={'Authorization': f'Bearer {_api_access_token(config_path, session_file)}'},
         language=language,
+        config_path=config_path,
+        session_file=session_file,
     )
     return _api_data(response)
 
