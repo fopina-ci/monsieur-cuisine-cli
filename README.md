@@ -47,17 +47,18 @@ uv run monsieur-cuisine auth logout
 
 ## Call an API endpoint
 
-Use `api` to call a path on the Monsieur Cuisine API with the saved app session. The command adds the app's standard request headers and bearer token, then prints the JSON response:
+Use `api` to call a path on the Monsieur Cuisine API with the saved app session. The command adds the app's standard request headers and bearer token, then prints a readable summary of the response data. Add `--json` to print the normalized response data as JSON (the API's top-level `data` value, without the transport envelope):
 
 ```sh
 uv run monsieur-cuisine api api/v2/recipes/238467
 uv run monsieur-cuisine api api/v1/my-recipes/page/1/size/20
 uv run monsieur-cuisine api api/v1/custom-endpoint --method POST --data '{"name":"My recipe"}'
+uv run monsieur-cuisine api api/v2/recipes/238467 --json
 ```
 
 Supported methods are `GET`, `POST`, `PUT`, `PATCH`, and `DELETE`. Pass an optional JSON request body with `--data`. API calls default to `Accept-Language: en-US`, matching the mobile app's default API locale. Set the global option before the command to override it, for example `uv run monsieur-cuisine --lang pt-PT api api/v1/users`. Recipe URL lookups use the viewer language discovered from the recipe page. Supply a relative API path rather than a URL; the command always targets `mc-api.tecpal.com` so the saved bearer token is not sent to another host. Endpoints requiring the app's encrypted request/response format are not automatically encrypted or decrypted by this command. Write methods call the account API directly and can change account data.
 
-Use `recipes list` to list recipes in your account, and `recipes get` to fetch one by ID. The list command defaults to page 1 with 20 recipes; use `--page` and `--size` to change the pagination:
+Use `recipes list` to list recipes in your account, and `recipes get` to fetch one by ID. By default, recipe lists print a compact title/ID/status summary and recipe details print the main fields. Add `--json` to any response command (`profile`, `api`, and `recipes url/list/get/create/update`) for the normalized response data as JSON. The list command defaults to page 1 with 20 recipes; use `--page` and `--size` to change the pagination:
 
 ```sh
 uv run monsieur-cuisine recipes list
@@ -67,6 +68,7 @@ uv run monsieur-cuisine recipes get 238467
 uv run monsieur-cuisine recipes get 238467 --use-v1
 uv run monsieur-cuisine recipes create --data '{"status":"draft","source":"member","languageLocale":"pt-PT","deviceTypeIds":[13],"title":"My recipe","servingSizes":[]}'
 uv run monsieur-cuisine recipes update 238467 --data '{"status":"draft","source":"member","languageLocale":"pt-PT","deviceTypeIds":[13],"title":"Updated recipe","servingSizes":[]}'
+uv run monsieur-cuisine recipes list --json
 ```
 
 Add `--thumbnail PATH` and/or `--details-image PATH` to `recipes create` or `recipes update` to upload local image files as landscape recipe media. The CLI requests a temporary upload URL, uploads the bytes directly to storage, waits for the returned media ID to become ready, then adds it to `thumbnail.landscapeMediaId` or `detailsImage.landscapeMediaId` in the recipe payload. MIME types are inferred from the file extension.

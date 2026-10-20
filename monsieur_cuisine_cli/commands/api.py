@@ -4,10 +4,11 @@ import classyclick
 import click
 
 from ..api import auth
-from .cli import CLI, ContextProperties
+from .cli import CLI, ContextProperties, OutputProperties
+from .output import emit
 
 
-class Api(ContextProperties, CLI.Command):
+class Api(ContextProperties, OutputProperties, CLI.Command):
     """Call a custom Monsieur Cuisine API path with the saved session."""
 
     endpoint: str = classyclick.Argument(help='API path, for example api/v2/recipes/238467.')
@@ -33,9 +34,11 @@ class Api(ContextProperties, CLI.Command):
             raise click.ClickException(f'--data must contain valid JSON: {exc}') from exc
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc
-        if result is None:
+        if isinstance(result, dict) and 'data' in result:
+            result = result['data']
+        if result is None and not self.json:
             click.echo('Request completed with an empty response body.')
-        elif isinstance(result, str):
+        elif isinstance(result, str) and not self.json:
             click.echo(result)
         else:
-            click.echo(json.dumps(result, indent=2, ensure_ascii=False))
+            emit(result, self.json)
