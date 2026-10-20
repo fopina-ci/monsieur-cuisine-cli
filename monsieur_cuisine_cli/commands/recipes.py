@@ -37,14 +37,20 @@ class Create(ContextProperties, OutputProperties, Recipes.Command):
             payload = json.loads(self.data)
             if self.thumbnail:
                 media_id = recipes.upload_recipe_image(
-                    self.thumbnail, 'thumbnail', self.config_path,
-                    language=self.language, session_file=self.session_file,
+                    self.thumbnail,
+                    'thumbnail',
+                    self.config_path,
+                    language=self.language,
+                    session_file=self.session_file,
                 )
                 recipes.attach_uploaded_image(payload, 'thumbnail', media_id)
             if self.details_image:
                 media_id = recipes.upload_recipe_image(
-                    self.details_image, 'details', self.config_path,
-                    language=self.language, session_file=self.session_file,
+                    self.details_image,
+                    'details',
+                    self.config_path,
+                    language=self.language,
+                    session_file=self.session_file,
                 )
                 recipes.attach_uploaded_image(payload, 'detailsImage', media_id)
             recipe = recipes.create_my_recipe(
@@ -70,14 +76,20 @@ class Update(ContextProperties, OutputProperties, Recipes.Command):
             payload = json.loads(self.data)
             if self.thumbnail:
                 media_id = recipes.upload_recipe_image(
-                    self.thumbnail, 'thumbnail', self.config_path,
-                    language=self.language, session_file=self.session_file,
+                    self.thumbnail,
+                    'thumbnail',
+                    self.config_path,
+                    language=self.language,
+                    session_file=self.session_file,
                 )
                 recipes.attach_uploaded_image(payload, 'thumbnail', media_id)
             if self.details_image:
                 media_id = recipes.upload_recipe_image(
-                    self.details_image, 'details', self.config_path,
-                    language=self.language, session_file=self.session_file,
+                    self.details_image,
+                    'details',
+                    self.config_path,
+                    language=self.language,
+                    session_file=self.session_file,
                 )
                 recipes.attach_uploaded_image(payload, 'detailsImage', media_id)
             recipe = recipes.update_my_recipe(

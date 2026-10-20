@@ -64,9 +64,7 @@ def upload_recipe_image(
     if not isinstance(upload, dict) or not isinstance(upload.get('url'), str) or not upload.get('mediaId'):
         raise RuntimeError('Media upload URL response did not include a URL and media ID.')
 
-    request = urllib.request.Request(
-        upload['url'], data=content, headers={'Content-Type': mime_type}, method='PUT'
-    )
+    request = urllib.request.Request(upload['url'], data=content, headers={'Content-Type': mime_type}, method='PUT')
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             if response.status < 200 or response.status >= 300:
@@ -89,11 +87,7 @@ def upload_recipe_image(
         )
         media_items = media_result.get('media', []) if isinstance(media_result, dict) else []
         item = next(
-            (
-                item
-                for item in media_items
-                if isinstance(item, dict) and str(item.get('id')) == str(media_id)
-            ),
+            (item for item in media_items if isinstance(item, dict) and str(item.get('id')) == str(media_id)),
             None,
         )
         if item and str(item.get('uploadStatus')) == '3':
