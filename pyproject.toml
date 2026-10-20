@@ -29,7 +29,7 @@ dev = [
 Homepage = "https://github.com/fopina/monsieur-cuisine-cli"
 
 [project.scripts]
-monsieur-cuisine = "monsieur_cuisine_cli.__main__:main"
+monsieur-cuisine-cli = "monsieur_cuisine_cli.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["monsieur_cuisine_cli*"]
