@@ -311,6 +311,69 @@ def get_my_recipe(
     )
 
 
+def recipe_write_payload(recipe: object) -> dict:
+    """Convert a v3 recipe detail response into a create/update payload."""
+    if isinstance(recipe, dict) and isinstance(recipe.get('recipe'), dict):
+        recipe = recipe['recipe']
+    if not isinstance(recipe, dict):
+        raise RuntimeError('Recipe response was not an object; cannot export a write payload.')
+
+    payload = dict(recipe)
+    for field in (
+        'id', 'author', 'slug', 'translationId', 'firstPublishedAt', 'lastPublishedAt',
+        'createdAt', 'updatedAt', 'rating', 'totalRating', 'sharingUrl', 'popularity',
+        'media', 'copyrightWatermark', 'mediaArchiveUrl', 'mediaArchiveMd5',
+        'mediaArchiveStatus', 'mediaSourceHash', 'recipeMetas', 'translationStatus',
+        'allowSocialSharing', 'preparationTime', 'readyInTime',
+    ):
+        payload.pop(field, None)
+
+    complexity = payload.pop('complexity', None)
+    if isinstance(complexity, dict) and isinstance(complexity.get('id'), int):
+        payload['complexityId'] = complexity['id']
+    for response_field, write_field in (('deviceTypes', 'deviceTypeIds'), ('categories', 'categoryIds')):
+        values = payload.pop(response_field, None)
+        if isinstance(values, list):
+            payload[write_field] = [item['id'] for item in values if isinstance(item, dict) and isinstance(item.get('id'), int)]
+
+    for image_field in ('thumbnail', 'detailsImage'):
+        image = payload.get(image_field)
+        if isinstance(image, dict):
+            image = dict(image)
+            for orientation in ('landscape', 'portrait'):
+                media = image.pop(f'{orientation}Media', None)
+                if isinstance(media, dict):
+                    image[f'{orientation}MediaId'] = media.get('id')
+                    image[f'{orientation}IsAiGenerated'] = media.get('isAiGenerated', False)
+            payload[image_field] = image
+
+    nutrients = payload.get('nutrients')
+    if isinstance(nutrients, list):
+        payload['nutrients'] = [
+            {key: value for key, value in item.items() if key != 'amountFloat'} if isinstance(item, dict) else item
+            for item in nutrients
+        ]
+    serving_sizes = payload.get('servingSizes')
+    if isinstance(serving_sizes, list):
+        cleaned_sizes = []
+        for serving in serving_sizes:
+            if not isinstance(serving, dict):
+                cleaned_sizes.append(serving)
+                continue
+            serving = {key: value for key, value in serving.items() if key not in {'id', 'maxServing', 'modules', 'order'}}
+            steps = serving.get('steps')
+            if isinstance(steps, list):
+                serving['steps'] = [
+                    {key: value for key, value in step.items() if key not in {'id', 'duration', 'videoMedia', 'order'}}
+                    if isinstance(step, dict) else step
+                    for step in steps
+                ]
+            cleaned_sizes.append(serving)
+        payload['servingSizes'] = cleaned_sizes
+    _validate_recipe_write_payload(payload)
+    return payload
+
+
 def create_my_recipe(
     payload: dict,
     config_path=None,

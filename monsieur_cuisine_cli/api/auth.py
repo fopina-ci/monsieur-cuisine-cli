@@ -368,6 +368,16 @@ def renew(
             refreshed = json.loads(response.read())
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode('utf-8', errors='replace')
+        try:
+            error_body = json.loads(detail)
+        except json.JSONDecodeError:
+            error_body = None
+        if isinstance(error_body, dict) and str(error_body.get('code')) == '10009':
+            raise RuntimeError(
+                'The saved API token can no longer be refreshed. It may have already been refreshed '
+                'from another session or environment, which invalidates the previous token. '
+                'Run `monsieur-cuisine-cli auth login` again.'
+            ) from exc
         raise RuntimeError(f'HTTP {exc.code} from {url}: {detail}') from exc
     except urllib.error.URLError as exc:
         raise RuntimeError(f'Could not reach {url}: {exc.reason}') from exc

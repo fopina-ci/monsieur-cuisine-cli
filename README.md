@@ -39,7 +39,7 @@ monsieur-cuisine-cli auth login --browser
 
 Copy the final redirect URL beginning with `lidl-com.monsieur-cuisine.companion://` and paste it into the terminal when prompted.
 
-The session is saved beside the config file, by default at `~/.config/monsieur-cuisine/session.json` (or under `$XDG_CONFIG_HOME`). The file is restricted to the account owner. Expired API tokens are refreshed automatically and the failed request is retried. `auth renew` remains available for manual refresh. Check or clear the saved session with:
+The session is saved beside the config file, by default at `~/.config/monsieur-cuisine/session.json` (or under `$XDG_CONFIG_HOME`). The file is restricted to the account owner. Expired API tokens are refreshed automatically and the failed request is retried. Refreshing rotates the API token and invalidates the previous one, so don't share a session file or token across environments or refresh a copied token separately. If another environment has already refreshed it, run `auth login` here to create a fresh session. `auth renew` remains available for manual refresh. Check or clear the saved session with:
 
 ```sh
 monsieur-cuisine-cli auth status
@@ -59,6 +59,13 @@ monsieur-cuisine-cli recipes get 238467
 ```
 
 By default, recipe lists print a compact title, ID, and status summary, while recipe details show the main fields. Add `--json` to `profile`, `api`, `recipes url`, `recipes list`, `recipes get`, `recipes create`, or `recipes update` to print normalized response data as JSON.
+
+To export one of your recipes in the write-payload shape accepted by `recipes create` and `recipes update`, use `--backup`. It converts expanded response fields (such as category and device objects) to their write-form IDs and removes response-only metadata. The result is JSON and can be saved for later:
+
+```sh
+monsieur-cuisine-cli recipes get 238467 --backup > recipe.json
+monsieur-cuisine-cli recipes update 238467 --data "$(cat recipe.json)"
+```
 
 Create and update recipes by passing JSON data:
 
