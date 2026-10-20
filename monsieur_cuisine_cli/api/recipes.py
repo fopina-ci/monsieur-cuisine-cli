@@ -320,11 +320,29 @@ def recipe_write_payload(recipe: object) -> dict:
 
     payload = dict(recipe)
     for field in (
-        'id', 'author', 'slug', 'translationId', 'firstPublishedAt', 'lastPublishedAt',
-        'createdAt', 'updatedAt', 'rating', 'totalRating', 'sharingUrl', 'popularity',
-        'media', 'copyrightWatermark', 'mediaArchiveUrl', 'mediaArchiveMd5',
-        'mediaArchiveStatus', 'mediaSourceHash', 'recipeMetas', 'translationStatus',
-        'allowSocialSharing', 'preparationTime', 'readyInTime',
+        'id',
+        'author',
+        'slug',
+        'translationId',
+        'firstPublishedAt',
+        'lastPublishedAt',
+        'createdAt',
+        'updatedAt',
+        'rating',
+        'totalRating',
+        'sharingUrl',
+        'popularity',
+        'media',
+        'copyrightWatermark',
+        'mediaArchiveUrl',
+        'mediaArchiveMd5',
+        'mediaArchiveStatus',
+        'mediaSourceHash',
+        'recipeMetas',
+        'translationStatus',
+        'allowSocialSharing',
+        'preparationTime',
+        'readyInTime',
     ):
         payload.pop(field, None)
 
@@ -334,7 +352,9 @@ def recipe_write_payload(recipe: object) -> dict:
     for response_field, write_field in (('deviceTypes', 'deviceTypeIds'), ('categories', 'categoryIds')):
         values = payload.pop(response_field, None)
         if isinstance(values, list):
-            payload[write_field] = [item['id'] for item in values if isinstance(item, dict) and isinstance(item.get('id'), int)]
+            payload[write_field] = [
+                item['id'] for item in values if isinstance(item, dict) and isinstance(item.get('id'), int)
+            ]
 
     for image_field in ('thumbnail', 'detailsImage'):
         image = payload.get(image_field)
@@ -360,12 +380,15 @@ def recipe_write_payload(recipe: object) -> dict:
             if not isinstance(serving, dict):
                 cleaned_sizes.append(serving)
                 continue
-            serving = {key: value for key, value in serving.items() if key not in {'id', 'maxServing', 'modules', 'order'}}
+            serving = {
+                key: value for key, value in serving.items() if key not in {'id', 'maxServing', 'modules', 'order'}
+            }
             steps = serving.get('steps')
             if isinstance(steps, list):
                 serving['steps'] = [
                     {key: value for key, value in step.items() if key not in {'id', 'duration', 'videoMedia', 'order'}}
-                    if isinstance(step, dict) else step
+                    if isinstance(step, dict)
+                    else step
                     for step in steps
                 ]
             cleaned_sizes.append(serving)
