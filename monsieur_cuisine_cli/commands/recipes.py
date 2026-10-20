@@ -4,14 +4,15 @@ import classyclick
 import click
 
 from ..api import recipes
-from .cli import CLI, ContextProperties
+from .cli import CLI, ContextProperties, OutputProperties
+from .output import emit
 
 
 class Recipes(CLI.SubGroup):
     """Look up recipe information."""
 
 
-class Url(ContextProperties, Recipes.Command):
+class Url(ContextProperties, OutputProperties, Recipes.Command):
     """Fetch a recipe from its Monsieur Cuisine page URL."""
 
     url: str = classyclick.Argument(help='Full Monsieur Cuisine recipe page URL.')
@@ -21,10 +22,10 @@ class Url(ContextProperties, Recipes.Command):
             recipe = recipes.get_recipe_from_url(self.url, self.config_path, session_file=self.session_file)
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc
-        click.echo(json.dumps(recipe, indent=2, ensure_ascii=False))
+        emit(recipe, self.json)
 
 
-class Create(ContextProperties, Recipes.Command):
+class Create(ContextProperties, OutputProperties, Recipes.Command):
     """Create a recipe from a JSON payload using the v3 API."""
 
     data: str = classyclick.Option(required=True, help='Recipe payload as a JSON object.')
@@ -39,10 +40,10 @@ class Create(ContextProperties, Recipes.Command):
             raise click.ClickException(f'--data must contain valid JSON: {exc}') from exc
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc
-        click.echo(json.dumps(recipe, indent=2, ensure_ascii=False))
+        emit(recipe, self.json)
 
 
-class Update(ContextProperties, Recipes.Command):
+class Update(ContextProperties, OutputProperties, Recipes.Command):
     """Update a recipe from a JSON payload using the v3 API."""
 
     recipe_id: int = classyclick.Argument(help='Recipe ID.')
@@ -62,10 +63,10 @@ class Update(ContextProperties, Recipes.Command):
             raise click.ClickException(f'--data must contain valid JSON: {exc}') from exc
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc
-        click.echo(json.dumps(recipe, indent=2, ensure_ascii=False))
+        emit(recipe, self.json)
 
 
-class List(ContextProperties, Recipes.Command):
+class List(ContextProperties, OutputProperties, Recipes.Command):
     """List your recipes using the v3 API, or the deprecated v1 route on request."""
 
     page: int = classyclick.Option(default=1, help='Page number (starting at 1).')
@@ -85,10 +86,10 @@ class List(ContextProperties, Recipes.Command):
                 )
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc
-        click.echo(json.dumps(result, indent=2, ensure_ascii=False))
+        emit(result, self.json)
 
 
-class Get(ContextProperties, Recipes.Command):
+class Get(ContextProperties, OutputProperties, Recipes.Command):
     """Fetch one of your recipes by ID using the v3 API, or the deprecated v1 route on request."""
 
     recipe_id: int = classyclick.Argument(help='Recipe ID.')
@@ -107,4 +108,4 @@ class Get(ContextProperties, Recipes.Command):
                 )
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc
-        click.echo(json.dumps(recipe, indent=2, ensure_ascii=False))
+        emit(recipe, self.json)

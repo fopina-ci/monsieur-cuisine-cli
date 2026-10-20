@@ -6,7 +6,8 @@ import classyclick
 import click
 
 from ..api import auth
-from .cli import CLI, ContextProperties
+from .cli import CLI, ContextProperties, OutputProperties
+from .output import emit
 
 
 class Auth(CLI.SubGroup):
@@ -93,12 +94,12 @@ class Logout(ContextProperties, Auth.Command):
             click.echo('No saved session to remove.')
 
 
-class Profile(ContextProperties, CLI.Command):
+class Profile(ContextProperties, OutputProperties, CLI.Command):
     """Fetch the authenticated account profile."""
 
     def __call__(self):
         try:
             profile = auth.get_profile(self.config_path, language=self.language, session_file=self.session_file)
-            click.echo(json.dumps(profile, indent=2, ensure_ascii=False))
+            emit(profile, self.json)
         except RuntimeError as exc:
             raise click.ClickException(str(exc)) from exc
