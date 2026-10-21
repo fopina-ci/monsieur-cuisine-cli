@@ -1,0 +1,30 @@
+name: Monsieur Cuisine cookbook
+description: Validate Markdown recipes and convert them to Monsieur Cuisine CLI JSON payloads.
+inputs:
+  recipes:
+    description: Glob for recipe Markdown files.
+    required: false
+    default: recipes/**/*.md
+  output:
+    description: Directory where JSON payloads are written.
+    required: false
+    default: build/recipes
+outputs:
+  output-directory:
+    description: Directory containing generated JSON payloads.
+    value: ${{ steps.convert.outputs.output-directory }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    - name: Install image processing dependency
+      shell: bash
+      run: python -m pip install --disable-pip-version-check "Pillow>=10,<13"
+    - id: convert
+      shell: bash
+      env:
+        RECIPE_GLOB: ${{ inputs.recipes }}
+        OUTPUT_DIR: ${{ inputs.output }}
+      run: python "${{ github.action_path }}/action/convert.py"

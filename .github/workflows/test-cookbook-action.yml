@@ -1,0 +1,59 @@
+name: Test cookbook action
+on:
+  push:
+    branches: [main, github-action-cookbook]
+  pull_request:
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install image processing dependency
+        run: python -m pip install --disable-pip-version-check "Pillow>=10,<13"
+      - name: Create crop test image
+        run: |
+          python - <<'PY'
+          from PIL import Image, ImageDraw
+          image = Image.new('RGB', (1600, 900), 'green')
+          draw = ImageDraw.Draw(image)
+          draw.rectangle((0, 0, 100, 899), fill='red')
+          draw.rectangle((1400, 0, 1599, 899), fill='blue')
+          image.save('tests/action-fixtures/assets/crop.png')
+          PY
+      - name: Convert sample recipe
+        env:
+          RECIPE_GLOB: tests/action-fixtures/*.md
+          OUTPUT_DIR: ${{ runner.temp }}/recipe-json
+        run: python action/convert.py
+      - name: Check generated payload
+        env:
+          OUTPUT_DIR: ${{ runner.temp }}/recipe-json
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from PIL import Image
+          out = os.environ['OUTPUT_DIR']
+          recipe = json.load(open(os.path.join(out, 'soup.json')))
+          size = recipe['servingSizes'][0]
+          assert recipe['status'] == 'private-publish'
+          assert recipe['title'] == 'Tomato soup'
+          assert recipe['description'] == 'A simple weeknight soup.'
+          assert size['isDefault'] is True
+          assert size['ingredientGroups'][0]['isDefault'] is True
+          assert size['ingredientGroups'][0]['ingredients'][0]['amount'] == '800'
+          assert len(size['steps']) == 2
+          assert size['steps'][0]['mode']['type'] == 'slow_cooking'
+          assert open(os.path.join(out, 'soup.id')).read().strip() == '42'
+          assert os.path.isfile(open(os.path.join(out, 'soup.thumbnail')).read().strip())
+          assert open(os.path.join(out, 'soup.details-image')).read().strip().endswith('assets/tiny.png')
+          thumbnail = Image.open(open(os.path.join(out, 'crop.thumbnail')).read().strip())
+          assert thumbnail.size == (800, 600)
+          assert thumbnail.getpixel((10, 300))[0] > 180
+          assert thumbnail.getpixel((790, 300))[1] > 100
+          assert thumbnail.getpixel((790, 300))[2] < 100
+          assert Image.open(open(os.path.join(out, 'crop.details-image')).read().strip()).size == (1600, 900)
+          PY

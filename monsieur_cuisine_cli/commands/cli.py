@@ -5,6 +5,7 @@ import classyclick
 import click
 
 from .. import __version__
+from ..locales import SUPPORTED_LOCALES
 
 
 @dataclass(init=False)
@@ -33,7 +34,12 @@ class CLI(classyclick.helpers.ConfigFileMixin, classyclick.Group):
     )
     CONFIG_DEFAULT_NAME = 'monsieur-cuisine'
     CONFIG_EXAMPLE_PATH = Path(__file__).parents[1] / 'default-config.toml'
-    lang: str = classyclick.Option(default='en-US', show_default=True, help='Locale for API requests and Lidl sign-in.')
+    lang: str = classyclick.Option(
+        default='en-US',
+        type=click.Choice(SUPPORTED_LOCALES, case_sensitive=False),
+        show_default=True,
+        help='Locale for API requests and Lidl sign-in.',
+    )
     session_file: str = classyclick.Option(
         default='session.json',
         show_default='session.json; relative paths resolve beside --config; absolute paths are used as given',

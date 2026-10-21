@@ -12,6 +12,7 @@ import uuid
 from pathlib import Path
 
 from . import auth
+from .recipe_validation import validate_recipe_options
 
 _RECIPE_ID = re.compile(r'["\']?recipeId["\']?\s*:\s*["\']?(\d+)', re.IGNORECASE)
 _VIEWER_LANG = re.compile(
@@ -109,7 +110,7 @@ def attach_uploaded_image(payload: dict, field: str, media_id: int) -> None:
     image['landscapeIsAiGenerated'] = False
 
 
-def _validate_recipe_write_payload(payload: dict) -> None:
+def _validate_recipe_write_payload(payload: dict, language: str = 'en-US') -> None:
     """Reject known read-response shapes that do not match recipe write payloads."""
     if not isinstance(payload, dict):
         raise RuntimeError('Recipe payload must be a JSON object.')
@@ -186,6 +187,9 @@ def _validate_recipe_write_payload(payload: dict) -> None:
 
     if issues:
         raise RuntimeError('Recipe payload uses response-shaped fields:\n- ' + '\n- '.join(issues))
+
+    validation_language = payload.get('languageLocale', language)
+    validate_recipe_options(payload, validation_language if isinstance(validation_language, str) else language)
 
 
 def _recipe_page_metadata(url: str) -> tuple[str, str]:
@@ -405,7 +409,7 @@ def create_my_recipe(
     session_file: str = 'session.json',
 ) -> object | None:
     """Create an authored recipe using the observed v3 endpoint."""
-    _validate_recipe_write_payload(payload)
+    _validate_recipe_write_payload(payload, language)
     return _call_api(
         'api/v3/auth/user/recipes/',
         method='POST',
@@ -427,7 +431,7 @@ def update_my_recipe(
     """Update an authored recipe using the observed v3 endpoint."""
     if recipe_id < 1:
         raise RuntimeError('Recipe ID must be a positive integer.')
-    _validate_recipe_write_payload(payload)
+    _validate_recipe_write_payload(payload, language)
     return _call_api(
         f'api/v3/auth/user/recipes/{recipe_id}',
         method='PUT',
