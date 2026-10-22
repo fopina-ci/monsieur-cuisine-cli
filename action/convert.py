@@ -59,25 +59,33 @@ def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None
         if len(row) < 2:
             continue
         field, value = row[0].strip(), row[1].strip()
-        if field in {'field', 'property'} or not field:
+        if field.casefold() in {'field', 'property'} or not field:
             continue
         raw_metadata_rows.append((field, value))
 
     locale_labels = {'languagelocale', 'locale', 'language', 'language/locale'}
-    localized_locale_labels = {
-        labels['languageLocale'].casefold() for labels in RECIPE_FIELD_LABELS.values()
-    }
-    if not raw_metadata_rows or raw_metadata_rows[0][0].casefold() not in locale_labels | localized_locale_labels:
-        raise ValueError('languageLocale must be the first property in the Recipe table')
-    locale = canonical_locale(raw_metadata_rows[0][1])
+    localized_locale_labels = {labels['languageLocale'].casefold() for labels in RECIPE_FIELD_LABELS.values()}
+    locale_indexes = [
+        index
+        for index, (field, _) in enumerate(raw_metadata_rows)
+        if field.casefold() in locale_labels | localized_locale_labels
+    ]
+    if not locale_indexes:
+        raise ValueError('languageLocale is required in the Recipe table')
+    if len(locale_indexes) > 1:
+        raise ValueError('include languageLocale only once in the Recipe table')
+    locale_index = locale_indexes[0]
+    locale = canonical_locale(raw_metadata_rows[locale_index][1])
     metadata['languagelocale'] = locale
     localized_labels = RECIPE_FIELD_LABELS.get(locale, {})
     field_aliases = {label.casefold(): field.casefold() for field, label in localized_labels.items()}
     metadata_rows = []
-    for field, value in raw_metadata_rows[1:]:
+    for index, (field, value) in enumerate(raw_metadata_rows):
+        if index == locale_index:
+            continue
         normalized = field.casefold()
         if normalized in locale_labels or normalized in localized_locale_labels:
-            raise ValueError('include languageLocale only once, as the first property in the Recipe table')
+            raise ValueError('include languageLocale only once in the Recipe table')
         field = field_aliases.get(normalized, normalized)
         if field not in _METADATA_FIELDS:
             raise ValueError(f'unknown Recipe table property {field!r}')

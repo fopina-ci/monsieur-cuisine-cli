@@ -50,7 +50,7 @@ def main() -> None:
     if not locale_site_codes:
         raise SystemExit('No locale codes found; locale list was not changed.')
 
-    mapping_lines = ''.join(f"    {locale!r}: {code!r},\n" for locale, code in sorted(locale_site_codes.items()))
+    mapping_lines = ''.join(f'    {locale!r}: {code!r},\n' for locale, code in sorted(locale_site_codes.items()))
     replacement = 'LOCALE_SITE_CODES = {\n' + mapping_lines + '}\n\nSUPPORTED_LOCALES = tuple(LOCALE_SITE_CODES)'
     source = LOCALES_FILE.read_text(encoding='utf-8')
     updated, count = re.subn(

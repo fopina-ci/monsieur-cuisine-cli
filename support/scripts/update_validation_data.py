@@ -66,7 +66,7 @@ def _authenticated_cookie() -> str:
             if not isinstance(guide, dict) or not isinstance(guide.get('device_options'), list):
                 raise SystemExit('The session is not authenticated for recipe data. Log in and run the script again.')
             cookies = context.cookies(SITE_URL)
-            cookie = '; '.join(f"{item['name']}={item['value']}" for item in cookies)
+            cookie = '; '.join(f'{item["name"]}={item["value"]}' for item in cookies)
             if not cookie:
                 raise SystemExit('The browser session did not provide any site cookies.')
             print('Authenticated session confirmed; closing browser before fetching locale data.')
@@ -90,7 +90,9 @@ def _cookie_for_site_language(cookie: str, site_code: str) -> str:
 
 def _request_guide(locale: str, site_code: str, cookie: str) -> dict:
     boundary = '----mc-cli-locale-validation'
-    body = f'--{boundary}\r\nContent-Disposition: form-data; name="action"\r\n\r\nload_recipe_post\r\n--{boundary}--\r\n'
+    body = (
+        f'--{boundary}\r\nContent-Disposition: form-data; name="action"\r\n\r\nload_recipe_post\r\n--{boundary}--\r\n'
+    )
     referer = f'https://www.monsieur-cuisine.com/{site_code}/'
     request = urllib.request.Request(
         ENDPOINT,

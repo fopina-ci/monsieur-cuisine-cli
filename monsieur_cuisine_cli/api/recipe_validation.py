@@ -100,7 +100,7 @@ def validate_recipe_options(payload: dict, locale: str) -> None:
                 if not isinstance(ingredient, dict):
                     continue
                 unit = ingredient.get('unit')
-                if isinstance(unit, str) and unit not in ingredient_units:
+                if isinstance(unit, str) and unit and unit not in ingredient_units:
                     issues.append(
                         f'servingSizes[{size_index}].ingredientGroups[{group_index}]'
                         f'.ingredients[{ingredient_index}].unit {unit!r} is not available for {canonical}.'
