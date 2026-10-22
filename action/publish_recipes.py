@@ -84,7 +84,9 @@ def match_recipe_id(account: list[dict], payload: dict) -> str:
         matches = same_locale
     if len(matches) > 1:
         identifiers = ', '.join(str(recipe.get('id')) for recipe in matches)
-        raise RuntimeError(f'Multiple recipes match title {payload.get("title")!r} (IDs: {identifiers}); set recipeId explicitly.')
+        raise RuntimeError(
+            f'Multiple recipes match title {payload.get("title")!r} (IDs: {identifiers}); set recipeId explicitly.'
+        )
     return str(matches[0].get('id', '')) if matches else ''
 
 
@@ -97,15 +99,15 @@ def source_recipe_link(source: Path, recipe_id: str, payload: dict) -> bool:
     if heading is None:
         raise RuntimeError(f'{source} has no ## Recipe table')
     table_end = next((i for i in range(heading + 1, len(lines)) if lines[i].startswith('## ')), len(lines))
-    id_row = next((i for i in range(heading + 1, table_end) if re.match(r'^\s*\|\s*recipeId\s*\|', lines[i], re.I)), None)
+    id_row = next(
+        (i for i in range(heading + 1, table_end) if re.match(r'^\s*\|\s*recipeId\s*\|', lines[i], re.I)), None
+    )
     if id_row is not None:
         if lines[id_row] == replacement:
             return False
         lines[id_row] = replacement
     else:
-        separator = next(
-            (i for i in range(heading + 1, table_end) if re.match(r'^\s*\|\s*:?-{3,}', lines[i])), None
-        )
+        separator = next((i for i in range(heading + 1, table_end) if re.match(r'^\s*\|\s*:?-{3,}', lines[i])), None)
         if separator is None:
             raise RuntimeError(f'{source} has no Markdown table separator under ## Recipe')
         lines.insert(separator + 1, replacement)
@@ -150,7 +152,9 @@ def publish_one(
                 f'Draft error: {draft_result.stderr.strip().replace(chr(10), " ") or "unknown"}.'
             )
         result = draft_result
-        summary(f'{recipe_file.name} was saved as a draft because private publishing failed: {private_error or "unknown error"}')
+        summary(
+            f'{recipe_file.name} was saved as a draft because private publishing failed: {private_error or "unknown error"}'
+        )
     print(result.stdout, end='')
     if recipe_id:
         saved_id = recipe_id
@@ -222,7 +226,10 @@ def main() -> int:
             set_secret(token)
             original_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
         else:
-            print('GH_SECRETS_WRITE_TOKEN is not configured; token rotations will not persist between workflow runs.', file=sys.stderr)
+            print(
+                'GH_SECRETS_WRITE_TOKEN is not configured; token rotations will not persist between workflow runs.',
+                file=sys.stderr,
+            )
 
         failed = False
         try:

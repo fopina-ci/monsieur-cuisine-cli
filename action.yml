@@ -2,7 +2,7 @@ name: Monsieur Cuisine cookbook
 description: Validate cookbook Markdown, publish recipes, fetch recipes, and create recipe-ID pull requests.
 inputs:
   operation:
-    description: Action to run: validate Markdown, publish cookbook recipes, or get one recipe.
+    description: "Action to run: validate Markdown, publish cookbook recipes, or get one recipe."
     required: false
     default: validate
   recipes:
