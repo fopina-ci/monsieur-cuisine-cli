@@ -1,6 +1,6 @@
 # Monsieur Cuisine cookbook action
 
-This composite GitHub Action validates Markdown recipes and converts each one to a JSON payload accepted by `monsieur-cuisine-cli recipes create --data`.
+This composite GitHub Action validates Markdown recipes, publishes them through the CLI, fetches existing recipes, and opens follow-up pull requests with assigned recipe IDs.
 
 ## Recipe format
 
@@ -44,23 +44,87 @@ To retain structured ingredient data or machine modes, append hidden Markdown an
 
 ## Use in a cookbook repository
 
+The action has three operations:
+
+- `validate` (the default) parses every matching Markdown recipe, checks required fields and localized dropdown values, and writes JSON payloads.
+- `publish` converts the Markdown, creates or updates private recipes, and opens a pull request recording recipe IDs for recipes whose IDs are not in the Markdown yet.
+- `get` fetches one recipe by ID or full Monsieur Cuisine URL and writes the response to `recipe.json`.
+
+The cookbook only needs small workflow files to choose when each operation runs. The validation workflow can run on recipe pull requests:
+
 ```yaml
-name: Validate cookbook
+name: Validate recipes
 on:
   pull_request:
-  push:
-    branches: [main]
 jobs:
-  recipes:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: fopina/monsieur-cuisine-cli@github-action-cookbook
-        id: cookbook
+      - uses: fopina/monsieur-cuisine-cli@main
+        with:
+          operation: validate
+```
+
+Publishing runs after changes reach `main`, or manually after confirmation. The action handles authentication, title matching, create/update, ID recording, and the follow-up pull request; the cookbook workflow contains no publishing scripts.
+
+```yaml
+name: Publish recipes
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      confirm_publish:
+        description: Publish every Markdown recipe as private
+        type: boolean
+        required: true
+        default: false
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  publish:
+    if: ${{ github.event_name == 'push' || inputs.confirm_publish }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: fopina/monsieur-cuisine-cli@main
+        with:
+          operation: publish
+          session_token: ${{ secrets.MC_API_ACCESS_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          secrets_write_token: ${{ secrets.GH_SECRETS_WRITE_TOKEN }}
+```
+
+Configure `MC_API_ACCESS_TOKEN` with the `accessToken` value from the CLI `session.json`. `GH_SECRETS_WRITE_TOKEN` is optional; when supplied with permission to update repository Actions secrets, the action saves a rotated API token back to `MC_API_ACCESS_TOKEN`. Without it, update that secret if the API token is refreshed during a run. The workflow's `GITHUB_TOKEN` needs `contents: write` and `pull-requests: write`; repository settings must also allow GitHub Actions to create pull requests.
+
+To fetch an existing recipe on demand, set the `recipe` input to a positive numeric ID or a full HTTP(S) URL. IDs run `recipes get`; URLs run `recipes url`.
+
+```yaml
+name: Get recipe
+on:
+  workflow_dispatch:
+    inputs:
+      recipe:
+        description: Recipe ID or full Monsieur Cuisine recipe URL
+        required: true
+        type: string
+jobs:
+  get-recipe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: recipe
+        uses: fopina/monsieur-cuisine-cli@main
+        with:
+          operation: get
+          recipe: ${{ inputs.recipe }}
+          session_token: ${{ secrets.MC_API_ACCESS_TOKEN }}
       - uses: actions/upload-artifact@v4
         with:
           name: recipe-json
-          path: ${{ steps.cookbook.outputs.output-directory }}
+          path: ${{ steps.recipe.outputs.output-directory }}
 ```
 
-Inputs `recipes` and `output` can override the defaults `recipes/**/*.md` and `build/recipes`. A missing recipe match or invalid recipe fails the action. Generated files are named after their Markdown file and written as UTF-8 JSON.
+Inputs `recipes` and `output` can override `recipes/**/*.md` and `build/recipes`. Generated files are named after their Markdown file. A missing match, invalid recipe, publish failure, or ambiguous title match fails the operation.
