@@ -332,9 +332,27 @@ def _parse_metadata_value(field: str, value: str, locale: str = 'en-US'):
     return value
 
 
+def _files_to_convert(recipe_glob: str, recipe_files_json: str | None = None) -> list[Path]:
+    if recipe_files_json:
+        try:
+            selected_files = json.loads(recipe_files_json)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f'recipe_files must be a JSON array of Markdown paths: {exc}') from exc
+        if not isinstance(selected_files, list) or any(not isinstance(name, str) for name in selected_files):
+            raise ValueError('recipe_files must be a JSON array of Markdown paths.')
+        paths = [Path(name) for name in selected_files]
+        if any(path.is_absolute() or '..' in path.parts or path.suffix.lower() != '.md' for path in paths):
+            raise ValueError('recipe_files must contain repo-relative Markdown paths.')
+        missing = [path.as_posix() for path in paths if not path.is_file()]
+        if missing:
+            raise ValueError(f'recipe_files do not exist: {", ".join(missing)}')
+        return sorted(set(paths))
+    return sorted(Path(name) for name in glob.glob(recipe_glob, recursive=True) if Path(name).is_file())
+
+
 def main() -> int:
     recipe_glob = os.environ.get('RECIPE_GLOB', 'recipes/**/*.md')
-    files = sorted(Path(name) for name in glob.glob(recipe_glob, recursive=True) if Path(name).is_file())
+    files = _files_to_convert(recipe_glob, os.environ.get('RECIPE_FILES_JSON'))
     if not files:
         print(f'No recipe files matched {recipe_glob!r}', file=sys.stderr)
         return 1

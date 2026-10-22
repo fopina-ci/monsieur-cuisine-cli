@@ -10,6 +10,8 @@ import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from recipe_to_markdown import write_markdown_file
+
 
 def main() -> None:
     recipe = os.environ.get('RECIPE', '').strip()
@@ -60,9 +62,13 @@ def main() -> None:
         raise ValueError(f'CLI did not return valid JSON: {exc}') from exc
     recipe_file = output_dir / 'recipe.json'
     recipe_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    markdown_dir = Path(os.environ.get('MARKDOWN_OUTPUT_DIR', 'recipes'))
+    markdown_file = write_markdown_file(payload, recipe, markdown_dir)
     with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as output:
         output.write(f'output-directory={output_dir.resolve()}\n')
+        output.write(f'markdown-file={markdown_file.as_posix()}\n')
     print(f'Fetched recipe JSON: {recipe_file.resolve()}')
+    print(f'Created recipe Markdown: {markdown_file}')
 
 
 if __name__ == '__main__':
