@@ -70,7 +70,13 @@ jobs:
           operation: validate
 ```
 
-For a same-repository recipe pull request, run `draft` on the changed recipe files. It creates a draft only when no recipe ID or matching account recipe exists, then pushes the ID into the existing PR branch. It does not modify an existing recipe while the PR is unmerged. The workflow needs `contents: write` to update that branch; PRs from forks are skipped because their workflows do not receive write credentials. If a PR is abandoned after creating a draft, that draft may remain in the account.
+### Recipe pull-request workflow
+
+When a new recipe is opened as a same-repository pull request, the `draft` operation creates the recipe immediately in the connected Lidl/Monsieur Cuisine account with draft status. It then writes the returned `recipeId` into that recipe's Markdown file and commits the ID to the existing PR branch. This lets the PR review the exact recipe identity that will be published, without opening a second PR. The draft is not publicly published while the recipe PR is open.
+
+After the recipe PR is merged, the publish workflow uses that `recipeId` to update the same account recipe to private-published status. Existing recipes are only associated with the PR during draft preparation; they are not modified until merge. PR validation runs independently and requires all recipe fields, including complexity, even though the API's draft operation itself can omit complexity.
+
+The draft workflow needs `contents: write` to update the existing same-repository PR branch and `MC_API_ACCESS_TOKEN` to create or find the account recipe. PRs from forks are skipped because their workflows do not receive write credentials. If a PR is abandoned after creating a draft, that draft may remain in the account. The workflow does not need the repository setting that allows Actions to create pull requests, because it updates the existing PR rather than opening a new one.
 
 ```yaml
 name: Prepare recipe drafts
