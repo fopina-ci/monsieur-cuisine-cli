@@ -15,6 +15,7 @@ def recipe_response():
             'title': 'Tomato soup',
             'description': 'A simple soup.',
             'deviceTypes': [{'id': 13, 'name': 'Monsieur Cuisine connect'}],
+            'complexity': {'id': 22, 'name': 'Easy'},
             'servingSizes': [
                 {
                     'amount': 2,
@@ -55,6 +56,7 @@ def test_recipe_response_exports_to_cookbook_markdown_and_round_trips(recipe_res
     payload, recipe_id, _, _ = parse_recipe(path)
     assert recipe_id is None
     assert payload['title'] == 'Tomato soup'
+    assert payload['complexityId'] == 22
     assert payload['servingSizes'][0]['ingredientGroups'][0]['ingredients'][0]['amount'] == '800'
     assert payload['servingSizes'][0]['steps'][0]['mode']['type'] == 'slow_cooking'
 

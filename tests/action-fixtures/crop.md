@@ -11,6 +11,7 @@ Test image cropping.
 | languageLocale | en-US |
 | deviceTypeIds | 13 |
 | servings | 1 (serving) |
+| complexityId | 22 |
 
 ## Ingredients
 

@@ -17,6 +17,20 @@ def test_sample_recipe_ignores_table_header_and_allows_unitless_ingredients():
     assert ingredients[1]['unit'] == ''
 
 
+def test_recipe_validation_rejects_missing_complexity(tmp_path):
+    fixture = Path(__file__).parent / 'action-fixtures' / 'soup.md'
+    recipe = tmp_path / 'soup.md'
+    recipe.write_text(
+        fixture.read_text(encoding='utf-8')
+        .replace('| complexityId | 22 |\n', '')
+        .replace('![Tomato soup details photo](assets/tiny.png)\n', ''),
+        encoding='utf-8',
+    )
+
+    with pytest.raises(ValueError, match='complexityid'):
+        parse_recipe(recipe)
+
+
 def test_recipe_files_json_selects_only_requested_markdown(tmp_path, monkeypatch):
     recipes = tmp_path / 'recipes'
     recipes.mkdir()
