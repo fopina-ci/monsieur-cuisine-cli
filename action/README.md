@@ -1,6 +1,6 @@
 # Monsieur Cuisine cookbook action
 
-This composite GitHub Action validates Markdown recipes, publishes them through the CLI, fetches existing recipes, and opens follow-up pull requests with assigned recipe IDs.
+This composite GitHub Action validates Markdown recipes, prepares draft recipes during cookbook pull requests, publishes recipes after merge, and fetches existing recipes.
 
 ## Recipe format
 
@@ -44,15 +44,16 @@ To retain structured ingredient data or machine modes, append hidden Markdown an
 
 ## Use in a cookbook repository
 
-The action has three operations:
+The action has four operations:
 
 - `validate` (the default) parses every matching Markdown recipe, checks required fields and localized dropdown values, and writes JSON payloads.
-- `publish` converts the Markdown, creates or updates private recipes, and opens a pull request recording recipe IDs for recipes whose IDs are not in the Markdown yet.
+- `draft` converts selected Markdown recipes, creates a draft if no ID or matching account recipe exists, writes the ID into the recipe Markdown, and commits that change back to the same-repository pull request branch. Matching existing recipes are associated but not changed until merge.
+- `publish` converts the Markdown and updates the existing recipe ID to private-published status. New recipes must already have an ID from the pull-request draft operation.
 - `get` fetches one recipe by ID or full Monsieur Cuisine URL, writes the response to `recipe.json`, and creates a cookbook Markdown file.
 
-For `validate` and `publish`, `recipes` selects Markdown files with a glob and defaults to `recipes/**/*.md`. The optional `recipe_files` input accepts a JSON array of exact repo-relative Markdown paths and takes precedence over the glob. Use it when a workflow should publish only the files changed by a push.
+For `validate`, `draft`, and `publish`, `recipes` selects Markdown files with a glob and defaults to `recipes/**/*.md`. The optional `recipe_files` input accepts a JSON array of exact repo-relative Markdown paths and takes precedence over the glob. Use it to process only the recipe files changed by a pull request or push.
 
-The cookbook only needs small workflow files to choose when each operation runs. The validation workflow can run on recipe pull requests:
+The validation workflow can run on recipe pull requests:
 
 ```yaml
 name: Validate recipes
@@ -68,7 +69,42 @@ jobs:
           operation: validate
 ```
 
-Publishing runs after changes reach `main`, or manually after confirmation. The action handles authentication, title matching, create/update, ID recording, and the follow-up pull request; the cookbook workflow contains no publishing scripts.
+For a same-repository recipe pull request, run `draft` on the changed recipe files. It creates a draft only when no recipe ID or matching account recipe exists, then pushes the ID into the existing PR branch. It does not modify an existing recipe while the PR is unmerged. The workflow needs `contents: write` to update that branch; PRs from forks are skipped because their workflows do not receive write credentials. If a PR is abandoned after creating a draft, that draft may remain in the account.
+
+```yaml
+name: Prepare recipe drafts
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: write
+jobs:
+  draft-recipes:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - id: changed
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          files="$(git diff --name-only -z --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" -- recipes/ | python -c 'import json,sys; print(json.dumps([p for p in sys.stdin.buffer.read().decode().split("\0") if p.lower().endswith(".md")]))')"
+          echo "recipe_files=$files" >> "$GITHUB_OUTPUT"
+      - if: ${{ steps.changed.outputs.recipe_files != '[]' }}
+        uses: fopina/monsieur-cuisine-cli@main
+        with:
+          operation: draft
+          recipe_files: ${{ steps.changed.outputs.recipe_files }}
+          session_token: ${{ secrets.MC_API_ACCESS_TOKEN }}
+          secrets_write_token: ${{ secrets.GH_SECRETS_WRITE_TOKEN }}
+```
+
+After the PR is merged, publishing runs on `main` or manually after confirmation. The action updates recipes by their recorded IDs and does not open a second PR:
 
 ```yaml
 name: Publish recipes
@@ -83,8 +119,7 @@ on:
         required: true
         default: false
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 jobs:
   publish:
     if: ${{ github.event_name == 'push' || inputs.confirm_publish }}
@@ -95,11 +130,10 @@ jobs:
         with:
           operation: publish
           session_token: ${{ secrets.MC_API_ACCESS_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
           secrets_write_token: ${{ secrets.GH_SECRETS_WRITE_TOKEN }}
 ```
 
-Configure `MC_API_ACCESS_TOKEN` with the `accessToken` value from the CLI `session.json`. `GH_SECRETS_WRITE_TOKEN` is optional; when supplied with permission to update repository Actions secrets, the action saves a rotated API token back to `MC_API_ACCESS_TOKEN`. Without it, update that secret if the API token is refreshed during a run. The workflow's `GITHUB_TOKEN` needs `contents: write` and `pull-requests: write`; repository settings must also allow GitHub Actions to create pull requests.
+Configure `MC_API_ACCESS_TOKEN` with the `accessToken` value from the CLI `session.json`. `GH_SECRETS_WRITE_TOKEN` is optional; when supplied with permission to update repository Actions secrets, the action saves a rotated API token back to `MC_API_ACCESS_TOKEN`. Without it, update that secret if the API token is refreshed during a run. The draft workflow's `GITHUB_TOKEN` needs `contents: write` to commit IDs to the same-repository PR branch. The repository setting that allows Actions to create pull requests is not needed because this workflow updates an existing PR rather than opening a new one.
 
 To fetch an existing recipe on demand, set the `recipe` input to a positive numeric ID or a full HTTP(S) URL. IDs run `recipes get`; URLs run `recipes url`. The action writes the Markdown file under `recipes/` by default; set `markdown_output` to choose another directory. The `markdown-file` action output contains its path. Numeric IDs are retained in the Markdown `recipeId` field; URL imports omit that field so publishing creates a cookbook-owned copy.
 
