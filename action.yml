@@ -1,8 +1,8 @@
 name: Monsieur Cuisine cookbook
-description: Validate cookbook Markdown, publish recipes, fetch recipes, and create recipe-ID pull requests.
+description: Validate cookbook Markdown, prepare recipe drafts in pull requests, publish after merge, and fetch recipes.
 inputs:
   operation:
-    description: "Action to run: validate Markdown, publish cookbook recipes, or get one recipe."
+    description: "Action to run: validate Markdown, prepare pull-request drafts, publish recipes, or get one recipe."
     required: false
     default: validate
   recipes:
@@ -24,10 +24,7 @@ inputs:
     description: Optional recipe ID or full Monsieur Cuisine recipe URL to fetch instead of converting Markdown files.
     required: false
   session_token:
-    description: CLI API access token from session.json, required for get and publish operations.
-    required: false
-  github_token:
-    description: GitHub token with contents:write and pull-requests:write permissions, required for publishing.
+    description: CLI API access token from session.json, required for get, draft, and publish operations.
     required: false
   secrets_write_token:
     description: Optional token with Actions secrets write permission to persist a refreshed MC_API_ACCESS_TOKEN.
@@ -51,15 +48,15 @@ runs:
         OPERATION: ${{ inputs.operation }}
       run: |
         case "$OPERATION" in
-          validate|publish|get) ;;
-          *) echo "operation must be validate, publish, or get" >&2; exit 1 ;;
+          validate|draft|publish|get) ;;
+          *) echo "operation must be validate, draft, publish, or get" >&2; exit 1 ;;
         esac
     - name: Install image processing dependency
-      if: ${{ inputs.operation == 'validate' || inputs.operation == 'publish' }}
+      if: ${{ inputs.operation == 'validate' || inputs.operation == 'draft' || inputs.operation == 'publish' }}
       shell: bash
       run: python -m pip install --disable-pip-version-check "Pillow>=10,<13"
     - id: convert
-      if: ${{ inputs.operation == 'validate' || inputs.operation == 'publish' }}
+      if: ${{ inputs.operation == 'validate' || inputs.operation == 'draft' || inputs.operation == 'publish' }}
       shell: bash
       env:
         RECIPE_GLOB: ${{ inputs.recipes }}
@@ -67,7 +64,7 @@ runs:
         OUTPUT_DIR: ${{ inputs.output }}
       run: python "${{ github.action_path }}/action/convert.py"
     - name: Install CLI for recipe operations
-      if: ${{ inputs.operation == 'get' || inputs.operation == 'publish' }}
+      if: ${{ inputs.operation == 'get' || inputs.operation == 'draft' || inputs.operation == 'publish' }}
       shell: bash
       run: python -m pip install --disable-pip-version-check "${{ github.action_path }}"
     - id: get_recipe
@@ -79,12 +76,12 @@ runs:
         OUTPUT_DIR: ${{ inputs.output }}
         MARKDOWN_OUTPUT_DIR: ${{ inputs.markdown_output }}
       run: python "${{ github.action_path }}/action/get_recipe.py"
-    - name: Publish recipes and open recipe ID pull request
-      if: ${{ inputs.operation == 'publish' }}
+    - name: Prepare recipe drafts or publish recipes
+      if: ${{ inputs.operation == 'draft' || inputs.operation == 'publish' }}
       shell: bash
       env:
         RECIPE_JSON_DIR: ${{ steps.convert.outputs.output-directory }}
         SESSION_TOKEN: ${{ inputs.session_token }}
-        GH_TOKEN: ${{ inputs.github_token }}
+        PUBLISH_MODE: ${{ inputs.operation }}
         GH_SECRETS_WRITE_TOKEN: ${{ inputs.secrets_write_token }}
       run: python "${{ github.action_path }}/action/publish_recipes.py"

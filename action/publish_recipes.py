@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish converted cookbook recipes and open a PR for newly recorded IDs."""
+"""Prepare recipe drafts in cookbook PRs and publish them after merge."""
 
 from __future__ import annotations
 
@@ -115,26 +115,59 @@ def source_recipe_link(source: Path, recipe_id: str, payload: dict) -> bool:
     return True
 
 
-def publish_one(
-    recipe_file: Path,
-    account: list[dict],
-    session_file: Path,
-) -> tuple[str, bool, bool, dict]:
+def _recipe_inputs(recipe_file: Path) -> tuple[dict, str, Path]:
     payload = json.loads(recipe_file.read_text(encoding='utf-8'))
     id_file = recipe_file.with_suffix('.id')
     source_file = recipe_file.with_suffix('.source')
     if not source_file.is_file():
         raise RuntimeError(f'Missing Markdown source sidecar for {recipe_file.name}.')
     recipe_id = id_file.read_text(encoding='utf-8').strip() if id_file.is_file() else ''
-    if not recipe_id:
-        recipe_id = match_recipe_id(account, payload)
+    source = Path(source_file.read_text(encoding='utf-8').strip())
+    return payload, recipe_id, source
 
+
+def _recipe_command(recipe_file: Path, session_file: Path, recipe_id: str = '') -> list[str]:
     cli = ['monsieur-cuisine-cli', '--session-file', str(session_file), 'recipes']
     cli += ['update', recipe_id] if recipe_id else ['create']
     for suffix, option in (('.thumbnail', '--thumbnail'), ('.details-image', '--details-image')):
         sidecar = recipe_file.with_suffix(suffix)
         if sidecar.is_file() and sidecar.stat().st_size:
             cli.extend((option, sidecar.read_text(encoding='utf-8').strip()))
+    return cli
+
+
+def prepare_draft_one(recipe_file: Path, account: list[dict], session_file: Path) -> tuple[str, bool, dict]:
+    payload, recipe_id, source = _recipe_inputs(recipe_file)
+    if not recipe_id:
+        recipe_id = match_recipe_id(account, payload)
+
+    if recipe_id:
+        # Existing or previously prepared recipes stay untouched until the PR is merged.
+        saved_id = recipe_id
+    else:
+        draft = {**payload, 'status': 'draft'}
+        cli = _recipe_command(recipe_file, session_file)
+        cli.extend(('--data', json.dumps(draft, ensure_ascii=False), '--json'))
+        result = run(cli, check=False)
+        if result.returncode:
+            raise RuntimeError(f'Could not create draft: {result.stderr.strip() or "unknown error"}.')
+        print(result.stdout, end='')
+        saved_id = recipe_id_from_result(result.stdout)
+        if not saved_id:
+            raise RuntimeError('Draft was created but the API response did not include a recipe ID.')
+
+    changed = source_recipe_link(source, saved_id, payload)
+    return saved_id, changed, payload
+
+
+def publish_one(recipe_file: Path, session_file: Path) -> tuple[str, bool, dict]:
+    payload, recipe_id, _source = _recipe_inputs(recipe_file)
+    if not recipe_id:
+        raise RuntimeError(
+            'recipeId is missing. The PR draft workflow must create the draft and record its ID before merge.'
+        )
+
+    cli = _recipe_command(recipe_file, session_file, recipe_id)
     cli.extend(('--data', json.dumps(payload, ensure_ascii=False), '--json'))
     result = run(cli, check=False)
     publish_warning = False
@@ -156,61 +189,42 @@ def publish_one(
             f'{recipe_file.name} was saved as a draft because private publishing failed: {private_error or "unknown error"}'
         )
     print(result.stdout, end='')
-    if recipe_id:
-        saved_id = recipe_id
-    else:
-        saved_id = recipe_id_from_result(result.stdout)
-    if not saved_id:
-        raise RuntimeError(f'{recipe_file.name} was saved but the API response did not include a recipe ID.')
-    source = Path(source_file.read_text(encoding='utf-8').strip())
-    changed = source_recipe_link(source, saved_id, payload)
-    return saved_id, changed, publish_warning, payload
+    return recipe_id, publish_warning, payload
 
 
-def open_id_pull_request(changed_sources: list[Path]) -> None:
+def write_ids_to_pr_branch(changed_sources: list[Path]) -> None:
     if not changed_sources:
         return
-    run_id = os.environ.get('GITHUB_RUN_ID', 'manual')
-    run_attempt = os.environ.get('GITHUB_RUN_ATTEMPT', '1')
-    branch = f'recipe-ids/{run_id}-{run_attempt}'
+    if os.environ.get('GITHUB_EVENT_NAME') != 'pull_request':
+        raise RuntimeError('The draft operation must run on a pull_request event.')
+    event_path = os.environ.get('GITHUB_EVENT_PATH')
+    repository = os.environ.get('GITHUB_REPOSITORY', '')
+    head_branch = os.environ.get('GITHUB_HEAD_REF', '')
+    if not event_path or not head_branch:
+        raise RuntimeError('Could not determine the pull request branch for recipe ID updates.')
+    event = json.loads(Path(event_path).read_text(encoding='utf-8'))
+    head_repository = event.get('pull_request', {}).get('head', {}).get('repo', {}).get('full_name', '')
+    if head_repository.casefold() != repository.casefold():
+        raise RuntimeError('Draft recipes and recipe ID updates are only supported for same-repository pull requests.')
+
     run(['git', 'config', 'user.name', 'github-actions[bot]'])
     run(['git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'])
-    run(['git', 'switch', '-c', branch])
     run(['git', 'add', '--', *(str(path) for path in changed_sources)])
     staged = run(['git', 'diff', '--cached', '--quiet'], check=False)
     if staged.returncode == 0:
         return
-    run(['git', 'commit', '-m', 'Record Monsieur Cuisine recipe IDs'])
-    run(['git', 'push', 'origin', branch])
-    result = run(
-        [
-            'gh',
-            'pr',
-            'create',
-            '--base',
-            os.environ.get('GITHUB_BASE_REF') or 'main',
-            '--head',
-            branch,
-            '--title',
-            'Record recipe IDs after publishing',
-            '--body',
-            'Adds Monsieur Cuisine recipe links to Markdown recipe metadata after publishing.',
-        ],
-        check=False,
-    )
-    if result.returncode:
-        raise RuntimeError(result.stderr.strip() or 'Could not open the recipe ID pull request.')
-    print(result.stdout, end='')
+    run(['git', 'commit', '-m', 'Record Monsieur Cuisine draft recipe IDs'])
+    run(['git', 'push', 'origin', f'HEAD:refs/heads/{head_branch}'])
 
 
 def main() -> int:
+    mode = os.environ.get('PUBLISH_MODE', 'publish')
+    if mode not in {'draft', 'publish'}:
+        raise RuntimeError(f'Unsupported publish mode: {mode}')
     token = os.environ.get('SESSION_TOKEN', '')
-    gh_token = os.environ.get('GH_TOKEN', '')
     recipe_dir = Path(os.environ.get('RECIPE_JSON_DIR', 'build/recipes'))
     if not token:
-        raise RuntimeError('The session_token input is required for publishing.')
-    if not gh_token:
-        raise RuntimeError('The github_token input is required for publishing.')
+        raise RuntimeError('The session_token input is required for draft and publish operations.')
     files = sorted(recipe_dir.glob('*.json'))
     if not files:
         raise RuntimeError(f'No converted recipe JSON files found in {recipe_dir}.')
@@ -220,12 +234,12 @@ def main() -> int:
         session_file.write_text(json.dumps({'accessToken': token}), encoding='utf-8')
         session_file.chmod(0o600)
         original_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
-        if os.environ.get('GH_SECRETS_WRITE_TOKEN'):
+        if os.environ.get('GH_SECRETS_WRITE_TOKEN') and mode == 'publish':
             run(['monsieur-cuisine-cli', '--session-file', str(session_file), 'auth', 'renew'])
             token = json.loads(session_file.read_text(encoding='utf-8'))['accessToken']
             set_secret(token)
             original_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
-        else:
+        elif not os.environ.get('GH_SECRETS_WRITE_TOKEN'):
             print(
                 'GH_SECRETS_WRITE_TOKEN is not configured; token rotations will not persist between workflow runs.',
                 file=sys.stderr,
@@ -233,22 +247,20 @@ def main() -> int:
 
         failed = False
         try:
-            account = get_account_recipes(session_file)
-            print(f'Loaded {len(account)} existing recipes for title matching.')
+            account = get_account_recipes(session_file) if mode == 'draft' else []
+            if mode == 'draft':
+                print(f'Loaded {len(account)} existing recipes for title matching.')
             changed_sources: list[Path] = []
             for recipe_file in files:
                 try:
-                    recipe_id, changed, publish_warning, payload = publish_one(recipe_file, account, session_file)
-                    print(f'Published {recipe_file.name} as recipe {recipe_id}.')
-                    if not any(str(entry.get('id')) == recipe_id for entry in account):
-                        account.append(
-                            {
-                                'id': recipe_id,
-                                'title': payload.get('title'),
-                                'languageLocale': payload.get('languageLocale'),
-                            }
-                        )
-                    failed |= publish_warning
+                    if mode == 'draft':
+                        recipe_id, changed, payload = prepare_draft_one(recipe_file, account, session_file)
+                        print(f'Recorded recipe ID for {recipe_file.name}: {recipe_id}.')
+                    else:
+                        recipe_id, publish_warning, payload = publish_one(recipe_file, session_file)
+                        print(f'Published recipe {recipe_file.name} as {recipe_id}.')
+                        failed |= publish_warning
+                        changed = False
                     if changed:
                         source_file = Path(recipe_file.with_suffix('.source').read_text(encoding='utf-8').strip())
                         changed_sources.append(source_file)
@@ -257,8 +269,8 @@ def main() -> int:
                     print(message, file=sys.stderr)
                     summary(message)
                     failed = True
-            if changed_sources:
-                open_id_pull_request(changed_sources)
+            if mode == 'draft' and changed_sources:
+                write_ids_to_pr_branch(changed_sources)
         finally:
             final_token = json.loads(session_file.read_text(encoding='utf-8'))['accessToken']
             final_hash = hashlib.sha256(final_token.encode('utf-8')).hexdigest()
