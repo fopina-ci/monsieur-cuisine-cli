@@ -162,7 +162,7 @@ def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None
         if mode is not None and not isinstance(mode, dict):
             raise ValueError('mc-mode annotation must be a JSON object')
         steps.append({'title': step_title, 'description': step_description, 'mode': mode})
-    required = ('languagelocale', 'devicetypeids', 'servings')
+    required = ('languagelocale', 'devicetypeids', 'servings', 'complexityid')
     missing = [field for field in required if field not in metadata]
     if missing:
         raise ValueError(f'missing Recipe table fields: {", ".join(missing)}')
