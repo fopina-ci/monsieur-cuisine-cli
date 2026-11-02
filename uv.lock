@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.12'",
@@ -197,7 +197,7 @@ wheels = [
 
 [[package]]
 name = "classyclick"
-version = "1.0.3"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -205,9 +205,9 @@ dependencies = [
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/34/86/3ea5c8b7c705034bf46adb058b740ea773a4b4e8af736b64cee3ab9b078c/classyclick-1.0.3.tar.gz", hash = "sha256:2f7274fd81a7d47238bb66b5fdc594d0a29dcccae047fc6a20552daa5861f0b8", size = 27805, upload-time = "2026-05-04T08:38:45.282Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b2/9d/47f2b9136f53d5f58d4577518a6f65357f5cbb3fc165fe5987bd49a53549/classyclick-1.1.0.tar.gz", hash = "sha256:9a4aa1707f349c8caba72d6f5085e066a072f5fd948c2fdef849c39592924ab3", size = 32531, upload-time = "2026-11-02T10:07:54.695Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b5/4c/eff97a80ca395598aef786ccf946100ce1025aca7af5334795714d66f91f/classyclick-1.0.3-py3-none-any.whl", hash = "sha256:a18aeff3ac241f497553f8a42a7c5453c5a6838a1d53e2dacb1b73d717718622", size = 17975, upload-time = "2026-05-04T08:38:44.148Z" },
+    { url = "https://files.pythonhosted.org/packages/29/ff/c0647964e7e9c8bb46690a14f897c0f5adc3dcb9628ff0ef548e371d656e/classyclick-1.1.0-py3-none-any.whl", hash = "sha256:6df112818581a0042bba1539b334569dfc77ebe14dca61c66ebd0249a4d4c3c3", size = 20609, upload-time = "2026-11-02T10:07:53.75Z" },
 ]
 
 [[package]]
@@ -657,7 +657,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "classyclick", specifier = ">=1.0.0" },
+    { name = "classyclick", specifier = ">=1.1.0" },
     { name = "click", specifier = ">=8.1" },
     { name = "cryptography", specifier = ">=43.0" },
     { name = "playwright", specifier = ">=1.50" },

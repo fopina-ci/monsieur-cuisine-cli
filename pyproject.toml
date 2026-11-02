@@ -10,7 +10,7 @@ description = "CLI for managing recipes in a monsieur-cuisine.com account"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "classyclick>=1.0.0",
+    "classyclick>=1.1.0",
     "click>=8.1",
     "cryptography>=43.0",
     "playwright>=1.50",
