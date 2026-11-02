@@ -59,7 +59,10 @@ def main() -> None:
     try:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
-        raise ValueError(f'CLI did not return valid JSON: {exc}') from exc
+        detail = f'CLI did not return valid JSON: {exc}; stdout was {len(result.stdout)} characters'
+        if result.stderr.strip():
+            detail += f'; stderr: {result.stderr.strip()[:1000]}'
+        raise ValueError(detail) from exc
     recipe_file = output_dir / 'recipe.json'
     recipe_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     markdown_dir = Path(os.environ.get('MARKDOWN_OUTPUT_DIR', 'recipes'))

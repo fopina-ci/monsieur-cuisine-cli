@@ -23,8 +23,34 @@ def _ids(values: object) -> str:
     )
 
 
+def normalize_recipe_response(payload: object) -> object:
+    """Normalize public-recipe CLI responses to the shape used by the exporter.
+
+    ``recipes url`` may return a transport wrapper containing another ``recipe``
+    object, with public-site field names (``name`` and ``language``). Keep the
+    wrapper metadata, but make the actual recipe conform to the established
+    ``title``/``languageLocale`` representation.
+    """
+    if not isinstance(payload, dict):
+        return payload
+    response = dict(payload)
+    recipe = response.get('recipe')
+    while isinstance(recipe, dict) and isinstance(recipe.get('recipe'), dict):
+        recipe = recipe['recipe']
+    if not isinstance(recipe, dict):
+        return response
+    normalized = dict(recipe)
+    if not normalized.get('title') and normalized.get('name'):
+        normalized['title'] = normalized['name']
+    if not normalized.get('languageLocale') and normalized.get('language'):
+        normalized['languageLocale'] = normalized['language']
+    response['recipe'] = normalized
+    return response
+
+
 def write_markdown_file(payload: object, requested_recipe: str, output_dir: str | Path) -> Path:
     """Render a CLI recipe response to Markdown and return the created path."""
+    payload = normalize_recipe_response(payload)
     response = payload if isinstance(payload, dict) else None
     recipe = response.get('recipe', response) if response else None
     if not isinstance(recipe, dict):
