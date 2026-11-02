@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from action.convert import parse_recipe
@@ -52,6 +54,15 @@ def test_recipe_response_exports_to_cookbook_markdown_and_round_trips(recipe_res
     assert '| recipeId |' not in text
     assert '<!-- mc-ingredient: {"amount":"800","unit":"g","isOptional":false} -->' in text
     assert '<!-- mc-mode: {"type":"slow_cooking","deviceSettings":[{"time":900,"order":0}]} -->' in text
+
+    # Fetching a recipe exports its text and metadata, but the cookbook still
+    # needs a local details photo before it is publishable. Model the author
+    # adding that required asset before validating the round trip.
+    with pytest.raises(ValueError, match='details image is required'):
+        parse_recipe(path)
+    image = tmp_path / 'details.png'
+    image.write_bytes((Path(__file__).parent / 'action-fixtures/assets/tiny.png').read_bytes())
+    path.write_text(text.replace('## Recipe', '![Details photo](details.png)\n\n## Recipe'), encoding='utf-8')
 
     payload, recipe_id, _, _ = parse_recipe(path)
     assert recipe_id is None

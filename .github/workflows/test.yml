@@ -1,6 +1,7 @@
 name: 🧪 tests
 
 on:
+  pull_request:
   workflow_call:
     secrets:
       CODECOV_TOKEN:
@@ -53,11 +54,13 @@ jobs:
           make test
       
       - name: Upload coverage to Codecov
+        if: github.event_name != 'pull_request'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload test results to Codecov
+        if: github.event_name != 'pull_request'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
