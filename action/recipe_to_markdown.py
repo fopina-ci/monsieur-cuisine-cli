@@ -70,16 +70,21 @@ def normalize_recipe_response(payload: object) -> object:
 
             groups = serving.get('ingredientGroups')
             if not groups and isinstance(serving.get('ingredients'), list):
-                serving['ingredientGroups'] = [{
-                    'name': 'Ingredients',
-                    'ingredients': serving['ingredients'],
-                }]
+                serving['ingredientGroups'] = [
+                    {
+                        'name': 'Ingredients',
+                        'ingredients': serving['ingredients'],
+                    }
+                ]
 
             steps = serving.get('steps')
             if isinstance(steps, list):
                 serving['steps'] = [
-                    ({**step, 'title': step['name']} if isinstance(step, dict)
-                     and not step.get('title') and step.get('name') else step)
+                    (
+                        {**step, 'title': step['name']}
+                        if isinstance(step, dict) and not step.get('title') and step.get('name')
+                        else step
+                    )
                     for step in steps
                 ]
             converted_servings.append(serving)
