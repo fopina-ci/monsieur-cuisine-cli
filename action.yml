@@ -26,10 +26,6 @@ inputs:
   session_token:
     description: CLI API access token from session.json, required for get, draft, and publish operations.
     required: false
-  debug:
-    description: For the get operation, log the complete CLI stdout and stderr responses (recipe contents may appear in workflow logs).
-    required: false
-    default: "false"
   secrets_write_token:
     description: Optional token with Actions secrets write permission to persist a refreshed MC_API_ACCESS_TOKEN.
     required: false
@@ -79,7 +75,7 @@ runs:
         SESSION_TOKEN: ${{ inputs.session_token }}
         OUTPUT_DIR: ${{ inputs.output }}
         MARKDOWN_OUTPUT_DIR: ${{ inputs.markdown_output }}
-        ACTION_DEBUG: ${{ inputs.debug }}
+        ACTION_DEBUG: ${{ runner.debug }}
       run: python "${{ github.action_path }}/action/get_recipe.py"
     - name: Prepare recipe drafts or publish recipes
       if: ${{ inputs.operation == 'draft' || inputs.operation == 'publish' }}

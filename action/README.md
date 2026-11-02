@@ -53,7 +53,7 @@ The action has four operations:
 - `publish` converts the Markdown and updates the existing recipe ID to private-published status. New recipes must already have an ID from the pull-request draft operation.
 - `get` fetches one recipe by ID or full Monsieur Cuisine URL, writes the response to `recipe.json`, and creates a cookbook Markdown file.
 
-For `get`, set the optional `debug: true` input to log the complete CLI stdout and stderr responses. This is useful when diagnosing unexpected CLI output; recipe response contents will be visible in the workflow logs. The session token is redacted and is never logged by this debug output.
+For `get`, enable GitHub Actions step debug logging to include the complete CLI stdout and stderr responses in the workflow logs. You can enable it for a rerun in GitHub's rerun dialog, or by setting the `ACTIONS_STEP_DEBUG` secret or variable to `true` in the workflow repository. No workflow YAML change is needed. Recipe response contents will be visible in the logs; the session token is redacted and is never logged by this debug output.
 
 For `validate`, `draft`, and `publish`, `recipes` selects Markdown files with a glob and defaults to `recipes/**/*.md`. The optional `recipe_files` input accepts a JSON array of exact repo-relative Markdown paths and takes precedence over the glob. Use it to process only the recipe files changed by a pull request or push.
 
@@ -167,7 +167,6 @@ jobs:
           operation: get
           recipe: ${{ inputs.recipe }}
           session_token: ${{ secrets.MC_API_ACCESS_TOKEN }}
-          debug: true # Optional; logs full CLI responses, including recipe contents.
       - uses: actions/upload-artifact@v4
         with:
           name: recipe-json
