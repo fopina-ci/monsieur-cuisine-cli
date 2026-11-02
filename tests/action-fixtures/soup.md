@@ -10,6 +10,9 @@ A simple weeknight soup.
 | --- | --- |
 | deviceTypeIds | 13 |
 | servings | 4 (servings) |
+| preparationTime | 10 |
+| readyInTime | 35 |
+| ingredientGroupName | Ingredients |
 | complexityId | 22 |
 | recipeId | [https://www.monsieur-cuisine.com/pt-pt/previsao-da-receita?recipe-id=42](https://www.monsieur-cuisine.com/pt-pt/previsao-da-receita?recipe-id=42) |
 | languageLocale | en-US |

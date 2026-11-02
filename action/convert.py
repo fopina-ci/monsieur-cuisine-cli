@@ -162,7 +162,15 @@ def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None
         if mode is not None and not isinstance(mode, dict):
             raise ValueError('mc-mode annotation must be a JSON object')
         steps.append({'title': step_title, 'description': step_description, 'mode': mode})
-    required = ('languagelocale', 'devicetypeids', 'servings', 'complexityid')
+    required = (
+        'languagelocale',
+        'devicetypeids',
+        'servings',
+        'complexityid',
+        'preparationtime',
+        'readyintime',
+        'ingredientgroupname',
+    )
     missing = [field for field in required if field not in metadata]
     if missing:
         raise ValueError(f'missing Recipe table fields: {", ".join(missing)}')
@@ -172,6 +180,17 @@ def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None
         raise ValueError('add at least one item under ## Ingredients')
     if not steps:
         raise ValueError('add at least one numbered item under ## Steps')
+    for field in ('preparationtime', 'readyintime'):
+        if metadata[field] < 1:
+            label = 'preparationTime' if field == 'preparationtime' else 'readyInTime'
+            raise ValueError(f'{label} must be at least 1')
+    if not metadata['ingredientgroupname'].strip():
+        raise ValueError('ingredientGroupName must be a non-empty value')
+    if details_image_path is None:
+        raise ValueError(
+            'a details image is required for private publishing; add an image immediately after the recipe description '
+            'or set detailsImage to an image path in the Recipe table'
+        )
     servings, serving_unit = metadata['servings']
     device_ids = metadata['devicetypeids']
     if not isinstance(device_ids, list) or not device_ids or any(type(value) is not int for value in device_ids):
