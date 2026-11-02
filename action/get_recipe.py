@@ -51,6 +51,8 @@ def main() -> None:
             check=False,
             text=True,
         )
+    if os.environ.get('ACTION_DEBUG', '').strip().lower() in {'1', 'true', 'yes', 'on'}:
+        _log_cli_response(result, session_token)
     if result.returncode:
         if result.stderr:
             print(result.stderr, end='', file=sys.stderr)
@@ -72,6 +74,26 @@ def main() -> None:
         output.write(f'markdown-file={markdown_file.as_posix()}\n')
     print(f'Fetched recipe JSON: {recipe_file.resolve()}')
     print(f'Created recipe Markdown: {markdown_file}')
+
+
+def _log_cli_response(result: subprocess.CompletedProcess, session_token: str) -> None:
+    """Write the complete CLI response to Actions logs without exposing tokens.
+
+    Each chunk is JSON-encoded on one line so response text cannot be treated as
+    a GitHub Actions workflow command. Concatenating decoded chunks reproduces
+    the captured stream exactly (apart from any session token, which is redacted).
+    """
+    print(f'::group::get-recipe CLI response (exit code {result.returncode})')
+    for name, value in (('stdout', result.stdout), ('stderr', result.stderr)):
+        if session_token:
+            value = value.replace(session_token, '[REDACTED SESSION TOKEN]')
+        print(f'{name}: {len(value)} characters')
+        if not value:
+            print('""')
+            continue
+        for offset in range(0, len(value), 1000):
+            print(json.dumps(value[offset : offset + 1000], ensure_ascii=False))
+    print('::endgroup::')
 
 
 if __name__ == '__main__':
