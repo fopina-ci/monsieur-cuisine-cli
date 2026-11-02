@@ -46,9 +46,12 @@ def normalize_recipe_response(payload: object) -> object:
         normalized['languageLocale'] = normalized['language']
 
     # The public endpoint uses product-generation codes; the cookbook format
-    # requires IDs from the localized device dropdown. MC3.0 is the Smart model.
-    if not normalized.get('deviceTypeIds') and normalized.get('deviceTypes') == ['MC3.0']:
-        normalized['deviceTypeIds'] = [13]
+    # requires IDs from the localized device dropdown.
+    if not normalized.get('deviceTypeIds') and isinstance(normalized.get('deviceTypes'), list):
+        device_ids = {'MC2.0': 12, 'MC3.0': 13}
+        codes = normalized['deviceTypes']
+        if codes and all(isinstance(code, str) and code in device_ids for code in codes):
+            normalized['deviceTypeIds'] = [device_ids[code] for code in codes]
 
     serving_sizes = normalized.get('servingSizes')
     if isinstance(serving_sizes, list):
@@ -69,13 +72,37 @@ def normalize_recipe_response(payload: object) -> object:
                     serving[target] = serving[source]
 
             groups = serving.get('ingredientGroups')
-            if not groups and isinstance(serving.get('ingredients'), list):
-                serving['ingredientGroups'] = [
-                    {
-                        'name': 'Ingredients',
-                        'ingredients': serving['ingredients'],
-                    }
+            ingredients = serving.get('ingredients')
+            if isinstance(groups, list) and isinstance(ingredients, list):
+                # Public API responses return group descriptors separately
+                # from a flat ingredient list linked through group IDs.
+                converted_groups = []
+                assigned = set()
+                for group in groups:
+                    if not isinstance(group, dict):
+                        converted_groups.append(group)
+                        continue
+                    converted_group = dict(group)
+                    if not converted_group.get('ingredients'):
+                        group_id = converted_group.get('id')
+                        matching = [
+                            ingredient
+                            for ingredient in ingredients
+                            if isinstance(ingredient, dict) and ingredient.get('ingredientGroupId') == group_id
+                        ]
+                        converted_group['ingredients'] = matching
+                        assigned.update(id(ingredient) for ingredient in matching)
+                    converted_groups.append(converted_group)
+                unassigned = [
+                    ingredient
+                    for ingredient in ingredients
+                    if not isinstance(ingredient, dict) or id(ingredient) not in assigned
                 ]
+                if unassigned:
+                    converted_groups.append({'name': 'Ingredients', 'ingredients': unassigned})
+                serving['ingredientGroups'] = converted_groups
+            elif not groups and isinstance(ingredients, list):
+                serving['ingredientGroups'] = [{'name': 'Ingredients', 'ingredients': ingredients}]
 
             steps = serving.get('steps')
             if isinstance(steps, list):
