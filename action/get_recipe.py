@@ -33,6 +33,7 @@ def main() -> None:
         raise ValueError('recipe must be a positive numeric ID or a full HTTP(S) recipe URL')
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    default_config = Path(__file__).resolve().parents[1] / 'monsieur_cuisine_cli' / 'default-config.toml'
     with tempfile.TemporaryDirectory(prefix='mc-recipe-') as temp_dir:
         session_path = Path(temp_dir) / 'session.json'
         session_path.write_text(json.dumps({'accessToken': session_token}), encoding='utf-8')
@@ -40,6 +41,8 @@ def main() -> None:
         result = subprocess.run(
             [
                 'monsieur-cuisine-cli',
+                '--config',
+                str(default_config),
                 '--session-file',
                 str(session_path),
                 'recipes',
