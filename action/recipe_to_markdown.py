@@ -44,6 +44,47 @@ def normalize_recipe_response(payload: object) -> object:
         normalized['title'] = normalized['name']
     if not normalized.get('languageLocale') and normalized.get('language'):
         normalized['languageLocale'] = normalized['language']
+
+    # The public endpoint uses product-generation codes; the cookbook format
+    # requires IDs from the localized device dropdown. MC3.0 is the Smart model.
+    if not normalized.get('deviceTypeIds') and normalized.get('deviceTypes') == ['MC3.0']:
+        normalized['deviceTypeIds'] = [13]
+
+    serving_sizes = normalized.get('servingSizes')
+    if isinstance(serving_sizes, list):
+        converted_servings = []
+        for item in serving_sizes:
+            if not isinstance(item, dict):
+                converted_servings.append(item)
+                continue
+            serving = dict(item)
+            # Public recipe responses use the API's legacy field names while
+            # the cookbook Markdown format uses the CLI's canonical names.
+            for source, target in (
+                ('servingUnit', 'unit'),
+                ('preparationDuration', 'preparationTime'),
+                ('duration', 'readyInTime'),
+            ):
+                if target not in serving and source in serving:
+                    serving[target] = serving[source]
+
+            groups = serving.get('ingredientGroups')
+            if not groups and isinstance(serving.get('ingredients'), list):
+                serving['ingredientGroups'] = [{
+                    'name': 'Ingredients',
+                    'ingredients': serving['ingredients'],
+                }]
+
+            steps = serving.get('steps')
+            if isinstance(steps, list):
+                serving['steps'] = [
+                    ({**step, 'title': step['name']} if isinstance(step, dict)
+                     and not step.get('title') and step.get('name') else step)
+                    for step in steps
+                ]
+            converted_servings.append(serving)
+        normalized['servingSizes'] = converted_servings
+
     response['recipe'] = normalized
     return response
 
@@ -94,6 +135,10 @@ def write_markdown_file(payload: object, requested_recipe: str, output_dir: str 
     complexity = recipe.get('complexity')
     if isinstance(complexity, dict) and complexity.get('id'):
         metadata.append(('complexityId', complexity['id']))
+    elif isinstance(complexity, str) and complexity.strip():
+        # The legacy public response returns a localized label rather than the
+        # dropdown ID; the Markdown importer resolves either representation.
+        metadata.append(('complexityId', complexity))
     if recipe.get('hintsAndTips'):
         metadata.append(('hintsAndTips', recipe['hintsAndTips']))
 
