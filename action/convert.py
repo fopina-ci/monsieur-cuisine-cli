@@ -417,7 +417,9 @@ def _files_to_convert(recipe_glob: str, recipe_files_json: str | None = None) ->
     return sorted(Path(name) for name in glob.glob(recipe_glob, recursive=True) if Path(name).is_file())
 
 
-def _write_action_outputs(output: Path, success: bool, report: str) -> None:
+def _write_action_outputs(
+    output: Path, success: bool, report: str, converted_files: list[Path] | None = None
+) -> None:
     output_file = os.environ.get('GITHUB_OUTPUT')
     if not output_file:
         return
@@ -425,6 +427,7 @@ def _write_action_outputs(output: Path, success: bool, report: str) -> None:
     with open(output_file, 'a', encoding='utf-8') as handle:
         handle.write(f'output-directory={output.as_posix()}\n')
         handle.write(f'validation-success={str(success).lower()}\n')
+        handle.write(f'converted-json-files={json.dumps([path.as_posix() for path in (converted_files or [])])}\n')
         handle.write(f'validation-report<<{delimiter}\n{report}\n{delimiter}\n')
 
 
@@ -451,6 +454,7 @@ def main() -> int:
         return 1
     failed = False
     failures = []
+    converted_files = []
     for path in files:
         try:
             payload, recipe_id, thumbnail_path, details_image_path = parse_recipe(path)
@@ -458,6 +462,7 @@ def main() -> int:
                 thumbnail_path = _create_thumbnail(thumbnail_path, output / f'{path.stem}.thumbnail.jpg')
             target = output / f'{path.stem}.json'
             target.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+            converted_files.append(target)
             id_path = target.with_suffix('.id')
             source_path = target.with_suffix('.source')
             source_path.write_text(f'{path.resolve()}\n', encoding='utf-8')
@@ -478,7 +483,7 @@ def main() -> int:
             failures.append(message)
             print(message, file=sys.stderr)
     report = '\n'.join(failures) if failures else f'Converted {len(files)} recipe(s) successfully.'
-    _write_action_outputs(output, not failed, report)
+    _write_action_outputs(output, not failed, report, converted_files)
     return int(failed)
 
 
