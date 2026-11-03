@@ -94,9 +94,7 @@ def main() -> None:
         image_match = re.fullmatch(r'!\[Details image\]\(([^)]+)\)', line.strip())
         if image_match:
             break
-    details_image_file = (
-        (markdown_file.parent / image_match.group(1)).as_posix() if image_match else ''
-    )
+    details_image_file = (markdown_file.parent / image_match.group(1)).as_posix() if image_match else ''
     with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as output:
         output.write(f'output-directory={output_dir.resolve()}\n')
         output.write(f'markdown-file={markdown_file.as_posix()}\n')
