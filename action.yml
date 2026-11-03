@@ -29,6 +29,10 @@ inputs:
   secrets_write_token:
     description: Optional token with Actions secrets write permission to persist a refreshed MC_API_ACCESS_TOKEN.
     required: false
+  capture_validation:
+    description: Return Markdown validation errors as outputs instead of failing the action.
+    required: false
+    default: "false"
 outputs:
   output-directory:
     description: Directory containing the generated or fetched recipe JSON.
@@ -45,6 +49,12 @@ outputs:
   recipe-url:
     description: Full source URL used to fetch the recipe.
     value: ${{ steps.get_recipe.outputs.recipe-url }}
+  validation-success:
+    description: Whether all selected Markdown recipes were converted successfully.
+    value: ${{ steps.convert.outputs.validation-success }}
+  validation-report:
+    description: Conversion summary or the validation errors for selected Markdown recipes.
+    value: ${{ steps.convert.outputs.validation-report }}
 runs:
   using: composite
   steps:
@@ -66,6 +76,7 @@ runs:
       run: python -m pip install --disable-pip-version-check "Pillow>=10,<13"
     - id: convert
       if: ${{ inputs.operation == 'validate' || inputs.operation == 'draft' || inputs.operation == 'publish' }}
+      continue-on-error: ${{ inputs.capture_validation == 'true' }}
       shell: bash
       env:
         RECIPE_GLOB: ${{ inputs.recipes }}
