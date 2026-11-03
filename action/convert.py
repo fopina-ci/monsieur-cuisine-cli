@@ -417,9 +417,7 @@ def _files_to_convert(recipe_glob: str, recipe_files_json: str | None = None) ->
     return sorted(Path(name) for name in glob.glob(recipe_glob, recursive=True) if Path(name).is_file())
 
 
-def _write_action_outputs(
-    output: Path, success: bool, report: str, converted_files: list[Path] | None = None
-) -> None:
+def _write_action_outputs(output: Path, success: bool, report: str, converted_files: list[Path] | None = None) -> None:
     output_file = os.environ.get('GITHUB_OUTPUT')
     if not output_file:
         return
