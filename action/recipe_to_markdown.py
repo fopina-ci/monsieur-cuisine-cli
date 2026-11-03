@@ -2,9 +2,12 @@
 """Write a fetched recipe response in the cookbook Markdown format."""
 
 import json
+import mimetypes
 import re
 import unicodedata
 from pathlib import Path
+from urllib.parse import urlsplit
+from urllib.request import Request, urlopen
 
 
 def _markdown(value: object) -> str:
@@ -21,6 +24,45 @@ def _ids(values: object) -> str:
         for value in values
         if value and (not isinstance(value, dict) or value.get('id'))
     )
+
+
+def _details_image_url(value: object) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, dict):
+        for key in ('landscapeMedia', 'portraitMedia'):
+            url = _details_image_url(value.get(key))
+            if url:
+                return url
+        return str(value.get('url') or '').strip()
+    return ''
+
+
+def _download_details_image(image: object, target_dir: Path, filename: str) -> str:
+    url = _details_image_url(image)
+    if not url:
+        return ''
+    parsed_url = urlsplit(url)
+    if parsed_url.scheme != 'https' or not parsed_url.netloc:
+        raise ValueError('The recipe details image URL must use HTTPS.')
+    request = Request(url, headers={'User-Agent': 'monsieur-cuisine-cli/recipe-import'})
+    try:
+        with urlopen(request, timeout=30) as response:
+            if urlsplit(response.geturl()).scheme != 'https':
+                raise ValueError('The recipe details image redirected away from HTTPS.')
+            content_type = response.headers.get_content_type()
+            if not content_type.startswith('image/'):
+                raise ValueError(f'The recipe details image response was not an image ({content_type}).')
+            data = response.read(25 * 1024 * 1024 + 1)
+    except OSError as exc:
+        raise ValueError(f'Could not download the recipe details image: {exc}') from exc
+    if len(data) > 25 * 1024 * 1024:
+        raise ValueError('The recipe details image exceeds the 25 MiB download limit.')
+    extension = mimetypes.guess_extension(content_type) or '.img'
+    image_path = target_dir / f'{filename}{extension}'
+    image_path.parent.mkdir(parents=True, exist_ok=True)
+    image_path.write_bytes(data)
+    return image_path.as_posix()
 
 
 def normalize_recipe_response(payload: object) -> object:
@@ -121,7 +163,9 @@ def normalize_recipe_response(payload: object) -> object:
     return response
 
 
-def write_markdown_file(payload: object, requested_recipe: str, output_dir: str | Path) -> Path:
+def write_markdown_file(
+    payload: object, requested_recipe: str, output_dir: str | Path, *, is_owned: bool | None = None
+) -> Path:
     """Render a CLI recipe response to Markdown and return the created path."""
     payload = normalize_recipe_response(payload)
     response = payload if isinstance(payload, dict) else None
@@ -151,7 +195,13 @@ def write_markdown_file(payload: object, requested_recipe: str, output_dir: str 
         ('deviceTypeIds', device_ids),
         ('servings', f'{serving["amount"]} ({unit})'),
     ]
-    if re.fullmatch(r'[1-9][0-9]*', requested_recipe.strip()):
+    if is_owned is True:
+        metadata.append(('recipeId', recipe_id))
+    elif is_owned is False:
+        metadata.append(('originalRecipeId', recipe_id))
+    elif re.fullmatch(r'[1-9][0-9]*', requested_recipe.strip()):
+        # Preserve the old behavior for direct callers that do not perform an
+        # ownership check. The get action always supplies the checked result.
         metadata.append(('recipeId', requested_recipe.strip()))
     for field in ('preparationTime', 'readyInTime'):
         value = serving.get(field, recipe.get(field))
@@ -174,16 +224,24 @@ def write_markdown_file(payload: object, requested_recipe: str, output_dir: str 
     if recipe.get('hintsAndTips'):
         metadata.append(('hintsAndTips', recipe['hintsAndTips']))
 
+    slug = unicodedata.normalize('NFKD', title).encode('ascii', 'ignore').decode().lower()
+    slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-') or 'recipe'
+    suffix = re.sub(r'[^A-Za-z0-9-]+', '', str(recipe_id)) if recipe_id else slug
+    recipe_path = Path(output_dir) / f'{slug}-{suffix or slug}.md'
+    if recipe_path.exists():
+        raise ValueError(f'{recipe_path} already exists; refusing to overwrite it.')
+    image_relative_path = _download_details_image(
+        recipe.get('detailsImage'), Path(output_dir) / 'assets', f'{slug}-{suffix or slug}-details'
+    )
+
     lines = [
         f'# {title}',
         '',
         _markdown(recipe.get('description')),
-        '',
-        '## Recipe',
-        '',
-        '| Field | Value |',
-        '| --- | --- |',
     ]
+    if image_relative_path:
+        lines.extend(['', f'![Details image]({Path(image_relative_path).relative_to(output_dir)})'])
+    lines.extend(['', '## Recipe', '', '| Field | Value |', '| --- | --- |'])
     lines.extend(f'| {_markdown(key)} | {_markdown(value)} |' for key, value in metadata)
     lines.extend(['', '## Ingredients', ''])
     ingredient_count = 0
@@ -230,12 +288,6 @@ def write_markdown_file(payload: object, requested_recipe: str, output_dir: str 
                     f'| {_markdown(nutrient.get("name"))} | {_markdown(amount)} | {_markdown(nutrient.get("unit"))} |'
                 )
 
-    slug = unicodedata.normalize('NFKD', title).encode('ascii', 'ignore').decode().lower()
-    slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-') or 'recipe'
-    suffix = re.sub(r'[^A-Za-z0-9-]+', '', str(recipe_id)) if recipe_id else slug
-    recipe_path = Path(output_dir) / f'{slug}-{suffix or slug}.md'
-    if recipe_path.exists():
-        raise ValueError(f'{recipe_path} already exists; refusing to overwrite it.')
     recipe_path.parent.mkdir(parents=True, exist_ok=True)
     recipe_path.write_text('\n'.join(lines).rstrip() + '\n', encoding='utf-8')
     return recipe_path

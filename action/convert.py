@@ -26,6 +26,7 @@ _METADATA_FIELDS = {
     'devicetypeids',
     'servings',
     'recipeid',
+    'originalrecipeid',
     'ingredientgroupname',
     'preparationtime',
     'readyintime',
@@ -198,6 +199,11 @@ def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None
     recipe_id = metadata.get('recipeid')
     if recipe_id is not None and (not isinstance(recipe_id, int) or isinstance(recipe_id, bool) or recipe_id < 1):
         raise ValueError('recipeId must be a positive integer')
+    original_recipe_id = metadata.get('originalrecipeid')
+    if original_recipe_id is not None and (
+        not isinstance(original_recipe_id, int) or isinstance(original_recipe_id, bool) or original_recipe_id < 1
+    ):
+        raise ValueError('originalRecipeId must be a positive integer')
 
     ingredient_groups = [
         {

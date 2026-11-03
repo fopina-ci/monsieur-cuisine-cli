@@ -93,7 +93,7 @@ def match_recipe_id(account: list[dict], payload: dict) -> str:
 def source_recipe_link(source: Path, recipe_id: str, payload: dict) -> bool:
     locale = str(payload.get('languageLocale') or 'pt-PT').replace('_', '-').lower()
     url = f'https://www.monsieur-cuisine.com/{locale}/previsao-da-receita?recipe-id={recipe_id}'
-    replacement = f'| recipeId | [{url}]({url}) |'
+    replacement = f'| recipeId | [{recipe_id}]({url}) |'
     lines = source.read_text(encoding='utf-8').splitlines()
     heading = next((i for i, line in enumerate(lines) if re.match(r'^##\s+Recipe\s*$', line, re.I)), None)
     if heading is None:
