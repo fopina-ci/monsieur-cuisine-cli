@@ -38,6 +38,12 @@ _METADATA_FIELDS = {
     'detailsimage',
 }
 
+_AMOUNT_NUMBER = r'(?:\d+(?:[.,]\d+)?(?:\s*/\s*\d+(?:[.,]\d+)?)?|[¼½¾⅐⅓⅔⅛⅜⅝⅞])'
+_AMOUNT_PATTERN = re.compile(
+    rf'^(?:ca\.?\s*)?{_AMOUNT_NUMBER}(?:\s+\d+\s*/\s*\d+)?(?:\s*[-–]\s*{_AMOUNT_NUMBER})?$',
+    re.IGNORECASE,
+)
+
 
 def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None]:
     text = path.read_text(encoding='utf-8')
@@ -134,22 +140,22 @@ def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None
     for line in section_lines('ingredients'):
         item = re.sub(r'^[-*+]\s+', '', line)
         annotation = re.search(r'<!--\s*mc-ingredient:\s*(\{.*\})\s*-->', item)
-        details = json.loads(annotation.group(1)) if annotation else {}
         if annotation:
+            # Continue accepting the previous hidden representation so
+            # existing cookbook files remain valid; new output is plain text.
+            details = json.loads(annotation.group(1))
             item = item[: annotation.start()].strip()
-        if not isinstance(details, dict):
-            raise ValueError('mc-ingredient annotation must be a JSON object')
-        unit = details.get('unit', '')
-        if unit:
-            unit = resolve_markdown_option('ingredient_unit', str(unit), locale)['unit_name']
-        ingredients.append(
-            {
-                'name': item,
-                'amount': details.get('amount', ''),
-                'unit': unit,
-                'isOptional': details.get('isOptional', False),
-            }
-        )
+            if not isinstance(details, dict):
+                raise ValueError('mc-ingredient annotation must be a JSON object')
+            amount = str(details.get('amount') or '')
+            unit_value = str(details.get('unit') or '')
+            unit = resolve_markdown_option('ingredient_unit', unit_value, locale)['unit_name'] if unit_value else ''
+            is_optional = details.get('isOptional', False)
+            if not isinstance(is_optional, bool):
+                raise ValueError('mc-ingredient isOptional must be a boolean')
+        else:
+            item, amount, unit, is_optional = _parse_ingredient_text(item, locale)
+        ingredients.append({'name': item, 'amount': amount, 'unit': unit, 'isOptional': is_optional})
     steps = []
     for line in section_lines('steps'):
         item = re.sub(r'^\d+[.)]\s+', '', line)
@@ -245,6 +251,41 @@ def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None
     except RuntimeError as exc:
         raise ValueError(str(exc)) from exc
     return payload, recipe_id, thumbnail_path, details_image_path
+
+
+def _parse_ingredient_text(item: str, locale: str) -> tuple[str, str, str, bool]:
+    """Parse ``name — amount unit (optional)`` ingredient lines."""
+    is_optional = bool(re.search(r'\s+\(optional\)$', item, re.IGNORECASE))
+    if is_optional:
+        item = re.sub(r'\s+\(optional\)$', '', item, flags=re.IGNORECASE).rstrip()
+
+    name, separator, details = item.rpartition(' — ')
+    if not separator:
+        if not item:
+            raise ValueError('ingredient name must not be empty')
+        return item, '', '', is_optional
+    name = name.strip()
+    details = details.strip()
+    if not name or not details:
+        raise ValueError('ingredients with an amount or unit must use "name — amount unit"')
+
+    words = details.split()
+    for start in range(len(words)):
+        unit_text = ' '.join(words[start:])
+        try:
+            unit = resolve_markdown_option('ingredient_unit', unit_text, locale)['unit_name']
+        except RuntimeError:
+            continue
+        amount = ' '.join(words[:start])
+        if amount and not _AMOUNT_PATTERN.fullmatch(amount):
+            continue
+        return name, amount, unit, is_optional
+
+    if _AMOUNT_PATTERN.fullmatch(details):
+        return name, details, '', is_optional
+    raise ValueError(
+        f'ingredient details {details!r} must contain an amount and/or an ingredient unit available for {locale}'
+    )
 
 
 def _table_rows(lines: list[str]) -> list[list[str]]:

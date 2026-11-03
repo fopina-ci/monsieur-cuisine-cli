@@ -52,7 +52,7 @@ def test_recipe_response_exports_to_cookbook_markdown_and_round_trips(recipe_res
     assert path.name == 'tomato-soup-12345.md'
     assert '| servings | 2 (servings) |' in text
     assert '| recipeId |' not in text
-    assert '<!-- mc-ingredient: {"amount":"800","unit":"g","isOptional":false} -->' in text
+    assert '- Tomatoes — 800 g' in text
     assert '<!-- mc-mode: {"type":"slow_cooking","deviceSettings":[{"time":900,"order":0}]} -->' in text
 
     # Fetching a recipe exports its text and metadata, but the cookbook still

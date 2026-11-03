@@ -256,13 +256,16 @@ def write_markdown_file(
             unit_value = ingredient.get('unit') or ''
             if isinstance(unit_value, dict):
                 unit_value = unit_value.get('name') or unit_value.get('unit') or ''
-            details = {
-                'amount': str(ingredient.get('amount') if ingredient.get('amount') is not None else ''),
-                'unit': unit_value,
-                'isOptional': bool(ingredient.get('isOptional', False)),
-            }
-            annotation = json.dumps(details, ensure_ascii=False, separators=(',', ':'))
-            lines.append(f'- {_markdown(ingredient["name"])} <!-- mc-ingredient: {annotation} -->')
+            name = _markdown(ingredient['name'])
+            amount = str(ingredient.get('amount') if ingredient.get('amount') is not None else '').strip()
+            unit = str(unit_value).strip()
+            details = ' '.join(value for value in (amount, unit) if value)
+            line = f'- {name}'
+            if details:
+                line += f' — {details}'
+            if ingredient.get('isOptional'):
+                line += ' (optional)'
+            lines.append(line)
             ingredient_count += 1
     if not ingredient_count:
         raise ValueError('The recipe has no ingredients to write to Markdown.')
