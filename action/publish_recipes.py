@@ -3,14 +3,14 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
+
+from token_session import require_api_tokens, temporary_session
 
 
 def run(command: list[str], *, check: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
@@ -25,23 +25,6 @@ def summary(message: str) -> None:
     if path:
         with Path(path).open('a', encoding='utf-8') as output:
             output.write(f'- {message}\n')
-
-
-def set_secret(token: str) -> None:
-    repo = os.environ.get('GITHUB_REPOSITORY')
-    secret_writer = os.environ.get('GH_SECRETS_WRITE_TOKEN', '')
-    if not secret_writer:
-        raise RuntimeError('GH_SECRETS_WRITE_TOKEN is required to persist a refreshed MC_API_ACCESS_TOKEN.')
-    result = subprocess.run(
-        ['gh', 'secret', 'set', 'MC_API_ACCESS_TOKEN', '--repo', repo or ''],
-        input=token,
-        capture_output=True,
-        check=False,
-        text=True,
-        env={**os.environ, 'GH_TOKEN': secret_writer},
-    )
-    if result.returncode:
-        raise RuntimeError(result.stderr.strip() or 'Could not update the MC_API_ACCESS_TOKEN repository secret.')
 
 
 def recipe_id_from_result(raw: str) -> str:
@@ -222,67 +205,42 @@ def main() -> int:
     if mode not in {'draft', 'publish'}:
         raise RuntimeError(f'Unsupported publish mode: {mode}')
     token = os.environ.get('SESSION_TOKEN', '')
+    secret_writer = os.environ.get('GH_SECRETS_WRITE_TOKEN', '')
     recipe_dir = Path(os.environ.get('RECIPE_JSON_DIR', 'build/recipes'))
-    if not token:
-        raise RuntimeError('The session_token input is required for draft and publish operations.')
+    require_api_tokens(token, secret_writer, mode)
     files = sorted(recipe_dir.glob('*.json'))
     if not files:
         raise RuntimeError(f'No converted recipe JSON files found in {recipe_dir}.')
 
-    with tempfile.TemporaryDirectory(prefix='mc-publish-') as temp_dir:
-        session_file = Path(temp_dir) / 'session.json'
-        session_file.write_text(json.dumps({'accessToken': token}), encoding='utf-8')
-        session_file.chmod(0o600)
-        original_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
-        if os.environ.get('GH_SECRETS_WRITE_TOKEN') and mode == 'publish':
+    with temporary_session(token, secret_writer, mode) as session_file:
+        if mode == 'publish':
             run(['monsieur-cuisine-cli', '--session-file', str(session_file), 'auth', 'renew'])
-            token = json.loads(session_file.read_text(encoding='utf-8'))['accessToken']
-            set_secret(token)
-            original_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
-        elif not os.environ.get('GH_SECRETS_WRITE_TOKEN'):
-            print(
-                'GH_SECRETS_WRITE_TOKEN is not configured; token rotations will not persist between workflow runs.',
-                file=sys.stderr,
-            )
 
         failed = False
-        try:
-            account = get_account_recipes(session_file) if mode == 'draft' else []
-            if mode == 'draft':
-                print(f'Loaded {len(account)} existing recipes for title matching.')
-            changed_sources: list[Path] = []
-            for recipe_file in files:
-                try:
-                    if mode == 'draft':
-                        recipe_id, changed, payload = prepare_draft_one(recipe_file, account, session_file)
-                        print(f'Recorded recipe ID for {recipe_file.name}: {recipe_id}.')
-                    else:
-                        recipe_id, publish_warning, payload = publish_one(recipe_file, session_file)
-                        print(f'Published recipe {recipe_file.name} as {recipe_id}.')
-                        failed |= publish_warning
-                        changed = False
-                    if changed:
-                        source_file = Path(recipe_file.with_suffix('.source').read_text(encoding='utf-8').strip())
-                        changed_sources.append(source_file)
-                except (OSError, RuntimeError, ValueError, TypeError, json.JSONDecodeError) as exc:
-                    message = f'{recipe_file.name}: {exc}'
-                    print(message, file=sys.stderr)
-                    summary(message)
-                    failed = True
-            if mode == 'draft' and changed_sources:
-                write_ids_to_pr_branch(changed_sources)
-        finally:
-            final_token = json.loads(session_file.read_text(encoding='utf-8'))['accessToken']
-            final_hash = hashlib.sha256(final_token.encode('utf-8')).hexdigest()
-            if final_hash != original_hash:
-                if os.environ.get('GH_SECRETS_WRITE_TOKEN'):
-                    set_secret(final_token)
+        account = get_account_recipes(session_file) if mode == 'draft' else []
+        if mode == 'draft':
+            print(f'Loaded {len(account)} existing recipes for title matching.')
+        changed_sources: list[Path] = []
+        for recipe_file in files:
+            try:
+                if mode == 'draft':
+                    recipe_id, changed, payload = prepare_draft_one(recipe_file, account, session_file)
+                    print(f'Recorded recipe ID for {recipe_file.name}: {recipe_id}.')
                 else:
-                    summary(
-                        'The API token was refreshed but could not be saved. '
-                        'Update the MC_API_ACCESS_TOKEN secret before the next publish run.'
-                    )
-                    failed = True
+                    recipe_id, publish_warning, payload = publish_one(recipe_file, session_file)
+                    print(f'Published recipe {recipe_file.name} as {recipe_id}.')
+                    failed |= publish_warning
+                    changed = False
+                if changed:
+                    source_file = Path(recipe_file.with_suffix('.source').read_text(encoding='utf-8').strip())
+                    changed_sources.append(source_file)
+            except (OSError, RuntimeError, ValueError, TypeError, json.JSONDecodeError) as exc:
+                message = f'{recipe_file.name}: {exc}'
+                print(message, file=sys.stderr)
+                summary(message)
+                failed = True
+        if mode == 'draft' and changed_sources:
+            write_ids_to_pr_branch(changed_sources)
     return int(failed)
 
 

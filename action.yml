@@ -27,7 +27,7 @@ inputs:
     description: CLI API access token from session.json, required for get, draft, and publish operations.
     required: false
   secrets_write_token:
-    description: Optional token with Actions secrets write permission to persist a refreshed MC_API_ACCESS_TOKEN.
+    description: Token with Actions secrets write permission, required for get, draft, and publish operations so refreshed MC_API_ACCESS_TOKEN values are persisted.
     required: false
   capture_validation:
     description: Return Markdown validation errors as outputs instead of failing the action.
@@ -80,10 +80,18 @@ runs:
       shell: bash
       env:
         OPERATION: ${{ inputs.operation }}
+        SESSION_TOKEN: ${{ inputs.session_token }}
+        SECRETS_WRITE_TOKEN: ${{ inputs.secrets_write_token }}
       run: |
         case "$OPERATION" in
           validate|compare|draft|publish|get) ;;
           *) echo "operation must be validate, compare, draft, publish, or get" >&2; exit 1 ;;
+        esac
+        case "$OPERATION" in
+          get|draft|publish)
+            test -n "$SESSION_TOKEN" || { echo "session_token is required for $OPERATION" >&2; exit 1; }
+            test -n "$SECRETS_WRITE_TOKEN" || { echo "secrets_write_token is required for $OPERATION to persist token refreshes" >&2; exit 1; }
+            ;;
         esac
     - name: Install image processing dependency
       if: ${{ inputs.operation == 'validate' || inputs.operation == 'draft' || inputs.operation == 'publish' }}
@@ -115,6 +123,7 @@ runs:
       env:
         RECIPE: ${{ inputs.recipe }}
         SESSION_TOKEN: ${{ inputs.session_token }}
+        GH_SECRETS_WRITE_TOKEN: ${{ inputs.secrets_write_token }}
         OUTPUT_DIR: ${{ inputs.output }}
         MARKDOWN_OUTPUT_DIR: ${{ inputs.markdown_output }}
         ACTION_DEBUG: ${{ runner.debug }}

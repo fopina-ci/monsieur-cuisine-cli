@@ -46,12 +46,13 @@ Machine modes can be retained with a hidden Markdown annotation such as `<!-- mc
 
 ## Use in a cookbook repository
 
-The action has four operations:
+The action has five operations:
 
 - `validate` (the default) parses every matching Markdown recipe, checks required fields and localized dropdown values, and writes JSON payloads.
 - `draft` converts selected Markdown recipes, creates a draft if no ID or matching account recipe exists, writes the ID into the recipe Markdown, and commits that change back to the same-repository pull request branch. Matching existing recipes are associated but not changed until merge.
 - `publish` converts the Markdown and updates the existing recipe ID to private-published status. New recipes must already have an ID from the pull-request draft operation.
 - `get` fetches one recipe by ID or full Monsieur Cuisine URL, writes the response to `recipe.json`, and creates a cookbook Markdown file.
+- `compare` compares two recipe JSON documents and exposes `recipes-equal` and `comparison-report` outputs without treating a valid mismatch as an operation failure.
 
 For `get`, enable GitHub Actions step debug logging to include the complete CLI stdout and stderr responses in the workflow logs. You can enable it for a rerun in GitHub's rerun dialog, or by setting the `ACTIONS_STEP_DEBUG` secret or variable to `true` in the workflow repository. No workflow YAML change is needed. Recipe response contents will be visible in the logs; the session token is redacted and is never logged by this debug output.
 
@@ -143,7 +144,7 @@ jobs:
           secrets_write_token: ${{ secrets.GH_SECRETS_WRITE_TOKEN }}
 ```
 
-Configure `MC_API_ACCESS_TOKEN` with the `accessToken` value from the CLI `session.json`. `GH_SECRETS_WRITE_TOKEN` is optional; when supplied with permission to update repository Actions secrets, the action saves a rotated API token back to `MC_API_ACCESS_TOKEN`. Without it, update that secret if the API token is refreshed during a run. The draft workflow's `GITHUB_TOKEN` needs `contents: write` to commit IDs to the same-repository PR branch. The repository setting that allows Actions to create pull requests is not needed because this workflow updates an existing PR rather than opening a new one.
+Configure `MC_API_ACCESS_TOKEN` with the `accessToken` value from the CLI `session.json`. Every token-authenticated operation (`get`, `draft`, and `publish`) requires both `session_token` and `secrets_write_token`. Configure `GH_SECRETS_WRITE_TOKEN` with a token that can update repository Actions secrets. The action stores the access token in a temporary session file, compares its value before and after the operation, and writes `MC_API_ACCESS_TOKEN` back to the repository secret if it changed—even when the CLI operation fails. The draft workflow's `GITHUB_TOKEN` separately needs `contents: write` to commit IDs to the same-repository PR branch. The repository setting that allows Actions to create pull requests is not needed because this workflow updates an existing PR rather than opening a new one.
 
 To fetch an existing recipe on demand, set the `recipe` input to a positive numeric ID or a full HTTP(S) URL. IDs run `recipes get`; URLs run `recipes url`. The action writes the Markdown file under `recipes/` by default; set `markdown_output` to choose another directory. The `markdown-file` action output contains its path, and `recipe-title` contains the fetched title. The action compares the recipe author with the authenticated profile: account-owned recipes keep their ID in `recipeId`, while other recipes record it as `originalRecipeId` for reference. A downloaded details image is placed under an `assets/` directory beside the generated Markdown when the source recipe has one.
 
@@ -167,6 +168,7 @@ jobs:
           operation: get
           recipe: ${{ inputs.recipe }}
           session_token: ${{ secrets.MC_API_ACCESS_TOKEN }}
+          secrets_write_token: ${{ secrets.GH_SECRETS_WRITE_TOKEN }}
       - uses: actions/upload-artifact@v4
         with:
           name: recipe-json

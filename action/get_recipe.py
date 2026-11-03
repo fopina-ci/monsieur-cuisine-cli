@@ -6,21 +6,24 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from recipe_to_markdown import write_markdown_file
+from token_session import temporary_session
 
 
 def main() -> None:
     recipe = os.environ.get('RECIPE', '').strip()
     session_token = os.environ.get('SESSION_TOKEN', '')
+    secret_writer = os.environ.get('GH_SECRETS_WRITE_TOKEN', '')
     output_dir = Path(os.environ.get('OUTPUT_DIR', 'build/recipes'))
     if not recipe:
         raise ValueError('recipe must be a positive recipe ID or a full Monsieur Cuisine recipe URL')
     if not session_token:
         raise ValueError('session_token is required to fetch a recipe; pass the accessToken from session.json')
+    if not secret_writer:
+        raise ValueError('secrets_write_token is required to persist a refreshed MC_API_ACCESS_TOKEN.')
 
     parsed_url = urlsplit(recipe)
     if parsed_url.scheme.lower() in {'http', 'https'}:
@@ -34,10 +37,7 @@ def main() -> None:
 
     output_dir.mkdir(parents=True, exist_ok=True)
     default_config = Path(__file__).resolve().parents[1] / 'monsieur_cuisine_cli' / 'default-config.toml'
-    with tempfile.TemporaryDirectory(prefix='mc-recipe-') as temp_dir:
-        session_path = Path(temp_dir) / 'session.json'
-        session_path.write_text(json.dumps({'accessToken': session_token}), encoding='utf-8')
-        session_path.chmod(0o600)
+    with temporary_session(session_token, secret_writer, 'get') as session_path:
         result = subprocess.run(
             [
                 'monsieur-cuisine-cli',
@@ -145,5 +145,5 @@ def _log_cli_response(result: subprocess.CompletedProcess, session_token: str) -
 if __name__ == '__main__':
     try:
         main()
-    except ValueError as exc:
+    except (RuntimeError, ValueError) as exc:
         raise SystemExit(str(exc)) from exc
