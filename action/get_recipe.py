@@ -89,6 +89,7 @@ def main() -> None:
     markdown_dir = Path(os.environ.get('MARKDOWN_OUTPUT_DIR', 'recipes'))
     markdown_file = write_markdown_file(payload, recipe, markdown_dir, is_owned=is_owned)
     recipe_title = ' '.join(str(recipe_data.get('title') or recipe_data.get('name') or '').split())
+    recipe_url = recipe if parsed_url.scheme.lower() in {'http', 'https'} else _recipe_url(recipe_data)
     image_match = None
     for line in markdown_file.read_text(encoding='utf-8').splitlines():
         image_match = re.fullmatch(r'!\[Details image\]\(([^)]+)\)', line.strip())
@@ -100,8 +101,25 @@ def main() -> None:
         output.write(f'markdown-file={markdown_file.as_posix()}\n')
         output.write(f'recipe-title={recipe_title}\n')
         output.write(f'details-image-file={details_image_file}\n')
+        output.write(f'recipe-url={recipe_url}\n')
     print(f'Fetched recipe JSON: {recipe_file.resolve()}')
     print(f'Created recipe Markdown: {markdown_file}')
+
+
+def _recipe_url(recipe_data: dict) -> str:
+    """Return the public URL for an ID-based fetch."""
+    for key in ('sharingUrl', 'url'):
+        candidate = str(recipe_data.get(key) or '').strip()
+        parsed = urlsplit(candidate)
+        if parsed.scheme.lower() in {'http', 'https'} and parsed.netloc:
+            return candidate
+
+    recipe_id = recipe_data.get('id')
+    locale = str(recipe_data.get('languageLocale') or recipe_data.get('language') or 'pt-PT')
+    locale = locale.replace('_', '-').lower()
+    if recipe_id and re.fullmatch(r'[a-z]{2}(?:-[a-z]{2})?', locale):
+        return f'https://www.monsieur-cuisine.com/{locale}/previsao-da-receita?recipe-id={recipe_id}'
+    raise ValueError('Could not determine the public recipe URL for the fetched recipe.')
 
 
 def _log_cli_response(result: subprocess.CompletedProcess, session_token: str) -> None:

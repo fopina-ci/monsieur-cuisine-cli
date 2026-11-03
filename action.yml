@@ -42,6 +42,9 @@ outputs:
   details-image-file:
     description: Downloaded details image path, if the recipe has an image.
     value: ${{ steps.get_recipe.outputs.details-image-file }}
+  recipe-url:
+    description: Full source URL used to fetch the recipe.
+    value: ${{ steps.get_recipe.outputs.recipe-url }}
 runs:
   using: composite
   steps:
