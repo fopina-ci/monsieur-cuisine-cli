@@ -30,7 +30,7 @@ def _details_image_url(value: object) -> str:
     if isinstance(value, str):
         return value.strip()
     if isinstance(value, dict):
-        for key in ('landscapeMedia', 'portraitMedia'):
+        for key in ('landscapeMedia', 'portraitMedia', 'landscape', 'portrait'):
             url = _details_image_url(value.get(key))
             if url:
                 return url
@@ -231,7 +231,9 @@ def write_markdown_file(
     if recipe_path.exists():
         raise ValueError(f'{recipe_path} already exists; refusing to overwrite it.')
     image_relative_path = _download_details_image(
-        recipe.get('detailsImage'), Path(output_dir) / 'assets', f'{slug}-{suffix or slug}-details'
+        recipe.get('detailsImage') or recipe.get('thumbnail'),
+        Path(output_dir) / 'assets',
+        f'{slug}-{suffix or slug}-details',
     )
 
     lines = [
