@@ -85,6 +85,38 @@ class Renew(ContextProperties, Auth.Command):
             raise click.ClickException(str(exc)) from exc
 
 
+class SetToken(ContextProperties, Auth.Command):
+    """Set the saved API access token from stdin or a hidden prompt."""
+
+    def __call__(self):
+        stdin = click.get_text_stream('stdin')
+        token = stdin.read().strip() if not stdin.isatty() else click.prompt('API access token', hide_input=True).strip()
+        if not token:
+            raise click.ClickException('No API access token supplied.')
+
+        path = auth._session_path(self.config_path, self.session_file)
+        try:
+            session = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+        except (OSError, json.JSONDecodeError) as exc:
+            raise click.ClickException(f'Saved session at {path} could not be read as valid JSON.') from exc
+        if not isinstance(session, dict):
+            raise click.ClickException(f'Saved session at {path} is not a JSON object.')
+
+        session['accessToken'] = token
+        path = auth._save_session(session, self.config_path, self.session_file)
+        click.echo(f'API access token saved to {path}')
+
+
+class GetToken(ContextProperties, Auth.Command):
+    """Print only the saved API access token to stdout."""
+
+    def __call__(self):
+        try:
+            click.echo(auth._api_access_token(self.config_path, self.session_file))
+        except RuntimeError as exc:
+            raise click.ClickException(str(exc)) from exc
+
+
 class Logout(ContextProperties, Auth.Command):
     """Remove the saved account session."""
 

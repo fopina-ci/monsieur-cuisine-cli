@@ -45,6 +45,23 @@ monsieur-cuisine-cli auth renew
 monsieur-cuisine-cli auth logout
 ```
 
+### Transfer an API token
+
+Use `auth get-token` to print only the saved API access token to stdout, for example to set a dedicated GitHub Actions secret. `auth set-token` reads a token from stdin (or prompts without echo when run interactively) and stores it in the selected session file:
+
+```sh
+uvx monsieur-cuisine-cli --session-file github-cookbook-session.json auth login
+uvx monsieur-cuisine-cli --session-file github-cookbook-session.json auth get-token | gh secret set MC_API_ACCESS_TOKEN --repo OWNER/REPOSITORY
+```
+
+`gh secret set` requires the GitHub CLI to be authenticated. GitHub does not reveal existing secret values, so `set-token` imports a token you already have; it cannot retrieve a GitHub secret. To set a token interactively without echoing it, run:
+
+```sh
+uvx monsieur-cuisine-cli --session-file github-cookbook-session.json auth set-token
+```
+
+Keep this session separate from your everyday CLI session: refreshing the token rotates it and invalidates the previous value.
+
 ## Use the CLI
 
 View your profile and list or fetch your recipes:
