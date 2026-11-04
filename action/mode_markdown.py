@@ -126,12 +126,12 @@ def _duration(value: object, language: str) -> str:
     return f'{_number(seconds)} {unit}'
 
 
-def _setting_fields(setting: dict, language: str) -> list[str]:
+def _setting_fields(setting: dict, language: str, mode_type: str) -> list[str]:
     labels = _FIELD_LABELS[language]
     fields = []
     if setting.get('weight') is not None:
         fields.append(f'{labels["weight"]}: {_number(setting["weight"])} g')
-    if setting.get('temperature') is not None:
+    if setting.get('temperature') is not None and not (mode_type == 'scale' and float(setting['temperature']) == 0):
         degree = '°C'
         fields.append(f'{labels["temperature"]}: {_number(setting["temperature"])} {degree}')
     if setting.get('time') is not None:
@@ -156,7 +156,7 @@ def render_mode(mode: dict, locale: str) -> str:
         for index, setting in enumerate(settings, 1):
             if not isinstance(setting, dict):
                 continue
-            values = _setting_fields(setting, language)
+            values = _setting_fields(setting, language, mode_type)
             if len(settings) > 1 and values:
                 fields.append(
                     f'Stage {index}: ' + '; '.join(values)

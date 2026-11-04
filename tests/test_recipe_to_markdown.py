@@ -100,7 +100,7 @@ def test_device_mode_markdown_uses_pt_pt_ui_terms_and_round_trips(recipe_respons
         {
             'title': 'Adicionar água',
             'description': 'Adicione água.',
-            'deviceSetting': {'mode': 'scale', 'settings': [{'weight': 20, 'order': 0}]},
+            'deviceSetting': {'mode': 'scale', 'settings': [{'weight': 20, 'temperature': 0, 'order': 0}]},
         },
         {'title': 'Mexer', 'description': 'Mexa.', 'deviceSetting': None},
     ]
@@ -112,6 +112,7 @@ def test_device_mode_markdown_uses_pt_pt_ui_terms_and_round_trips(recipe_respons
         in text
     )
     assert '**Modo:** **Balança** (`scale`) · Peso: 20 g' in text
+    assert '**Modo:** **Balança** (`scale`) · Peso: 20 g · Temperatura: 0 °C' not in text
     assert '3. **Mexer**: Mexa.' in text
     assert '**Mode**' not in text
 
