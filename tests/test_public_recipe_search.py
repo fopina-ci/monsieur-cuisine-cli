@@ -68,7 +68,7 @@ def test_recipes_search_command_prints_json_and_passes_locale(monkeypatch):
 
     assert result.exit_code == 0, result.output
     assert json.loads(result.output) == expected
-    assert calls == [(("puré maçã", 1), {'language': 'pt-PT'})]
+    assert calls == [(('puré maçã', 1), {'language': 'pt-PT'})]
 
 
 def test_recipes_search_command_human_output(monkeypatch):
