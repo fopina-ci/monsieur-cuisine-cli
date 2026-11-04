@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from action.convert import parse_recipe
+from action.convert import _parse_metadata_value, parse_recipe
 from action.recipe_to_markdown import write_markdown_file
 
 
@@ -146,3 +146,24 @@ def test_numeric_recipe_get_keeps_recipe_id_and_refuses_overwrite(recipe_respons
 
     with pytest.raises(ValueError, match='refusing to overwrite'):
         write_markdown_file(recipe_response, '12345', tmp_path)
+
+
+def test_imported_recipe_links_original_id_to_source_page(recipe_response, tmp_path):
+    path = write_markdown_file(
+        recipe_response,
+        'https://www.monsieur-cuisine.com/pt-pt/recipe/tomato-soup',
+        tmp_path,
+        is_owned=False,
+    )
+
+    assert (
+        '| originalRecipeId | [12345](https://www.monsieur-cuisine.com/pt-pt/recipe/tomato-soup) |'
+        in path.read_text(encoding='utf-8')
+    )
+    assert (
+        _parse_metadata_value(
+            'originalrecipeid',
+            '[12345](https://www.monsieur-cuisine.com/pt-pt/recipe/tomato-soup)',
+        )
+        == 12345
+    )

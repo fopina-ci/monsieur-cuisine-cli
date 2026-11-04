@@ -414,6 +414,10 @@ def _parse_metadata_value(field: str, value: str, locale: str = 'en-US'):
                 if len(identifiers) != 1:
                     raise ValueError('recipeId link must include one recipe-id query parameter')
                 value = identifiers[0]
+        elif field == 'originalrecipeid':
+            link = re.fullmatch(r'\[([1-9][0-9]*)\]\(https?://[^)]+\)', value)
+            if link:
+                value = link.group(1)
         return int(value)
     if field == 'complexityid':
         try:
