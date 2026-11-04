@@ -148,14 +148,28 @@ def normalize_recipe_response(payload: object) -> object:
 
             steps = serving.get('steps')
             if isinstance(steps, list):
-                serving['steps'] = [
-                    (
-                        {**step, 'title': step['name']}
-                        if isinstance(step, dict) and not step.get('title') and step.get('name')
-                        else step
-                    )
-                    for step in steps
-                ]
+                converted_steps = []
+                for step in steps:
+                    if not isinstance(step, dict):
+                        converted_steps.append(step)
+                        continue
+                    converted_step = dict(step)
+                    if not converted_step.get('title') and converted_step.get('name'):
+                        converted_step['title'] = converted_step['name']
+                    device_setting = converted_step.get('deviceSetting')
+                    if not converted_step.get('mode') and isinstance(device_setting, dict):
+                        mode = {
+                            key: device_setting[key]
+                            for key in ('reverse', 'turbo', 'size', 'texture', 'cleaningMode')
+                            if key in device_setting
+                        }
+                        if device_setting.get('mode') is not None:
+                            mode['type'] = device_setting['mode']
+                        if isinstance(device_setting.get('settings'), list):
+                            mode['deviceSettings'] = device_setting['settings']
+                        converted_step['mode'] = mode
+                    converted_steps.append(converted_step)
+                serving['steps'] = converted_steps
             converted_servings.append(serving)
         normalized['servingSizes'] = converted_servings
 
@@ -278,10 +292,10 @@ def write_markdown_file(
         step_title = _markdown(step.get('title') or title)
         description = _markdown(step.get('description'))
         line = f'{index}. **{step_title}**: {description}'
-        if isinstance(step.get('mode'), dict):
-            mode = json.dumps(step['mode'], ensure_ascii=False, separators=(',', ':'))
-            line += f' <!-- mc-mode: {mode} -->'
         lines.append(line)
+        if isinstance(step.get('mode'), dict):
+            mode = json.dumps(step['mode'], ensure_ascii=False, indent=2)
+            lines.extend(['', '   ```json', *[f'   {part}' for part in mode.splitlines()], '   ```'])
 
     nutrients = recipe.get('nutrients') or []
     if nutrients:

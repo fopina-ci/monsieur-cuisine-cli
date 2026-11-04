@@ -158,12 +158,29 @@ def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None
             item, amount, unit, is_optional = _parse_ingredient_text(item, locale)
         ingredients.append({'name': item, 'amount': amount, 'unit': unit, 'isOptional': is_optional})
     steps = []
-    for line in section_lines('steps'):
+    step_lines = section_lines('steps')
+    index = 0
+    while index < len(step_lines):
+        line = step_lines[index]
+        index += 1
         item = re.sub(r'^\d+[.)]\s+', '', line)
         annotation = re.search(r'<!--\s*mc-mode:\s*(\{.*\})\s*-->', item)
         mode = json.loads(annotation.group(1)) if annotation else None
         if annotation:
             item = item[: annotation.start()].strip()
+        if index < len(step_lines) and step_lines[index].casefold() in {'```json', '```'}:
+            index += 1
+            mode_lines = []
+            while index < len(step_lines) and step_lines[index] != '```':
+                mode_lines.append(step_lines[index])
+                index += 1
+            if index >= len(step_lines):
+                raise ValueError('device settings code block is missing its closing fence')
+            index += 1
+            try:
+                mode = json.loads('\n'.join(mode_lines))
+            except json.JSONDecodeError as exc:
+                raise ValueError(f'device settings code block must contain valid JSON: {exc}') from exc
         title_match = re.match(r'^\*\*(.+?)\*\*:\s*(.*)$', item)
         step_title = title_match.group(1) if title_match else title
         step_description = title_match.group(2) if title_match else item

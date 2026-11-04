@@ -40,9 +40,21 @@ A simple weeknight soup.
 
 Required table fields: the locale field must appear once and match a locale supported by the Monsieur Cuisine website; device type (one or more integer IDs or localized device names; comma-separated values are accepted); servings as a positive count followed by a unit from that locale's serving-unit list; complexity (an integer ID or localized complexity name); `preparationTime` and `readyInTime` as positive integers; and a non-empty `ingredientGroupName`. These values are validated in PRs. A details image is also required for private publishing: provide it immediately after the description or with the `detailsImage` Recipe-table property. Category values can also use IDs or localized names. Serving and ingredient units are checked against the selected locale. Recipe table labels can use the localized labels for that locale shown above or the existing CLI property names (for example, `languageLocale`, `deviceTypeIds`, `complexityId`, and `preparationTime`). Optional fields include recipe ID (positive integer or Monsieur Cuisine recipe link; selects update instead of create when publishing), categories, tips, nutrition, and thumbnail. Recipes are privately published by default; the action uses the API's `private-publish` status. Status is managed by the action rather than Markdown.
 
-Nutrition can be supplied as a table under `## Nutrition` with `Nutrient`, `Amount`, and `Unit` columns. Ingredient lines use `- ingredient name — amount unit`, for example `- tomatoes — 800 g`; the amount may be omitted, and the exact suffix `(optional)` sets `isOptional`, as in `- parsley — 1 tsp (optional)`. Units are validated against the locale's ingredient-unit list. A bare line such as `- salt` has no amount or unit. Steps become manual recipe steps with `mode: null`. The action does not infer machine modes from prose. Review the generated JSON before publishing, and use `recipes get` to inspect existing recipes for the exact device-specific mode schema your cooker uses.
+Nutrition can be supplied as a table under `## Nutrition` with `Nutrient`, `Amount`, and `Unit` columns. Ingredient lines use `- ingredient name — amount unit`, for example `- tomatoes — 800 g`; the amount may be omitted, and the exact suffix `(optional)` sets `isOptional`, as in `- parsley — 1 tsp (optional)`. Units are validated against the locale's ingredient-unit list. A bare line such as `- salt` has no amount or unit. Machine settings can be retained in a visible fenced JSON block immediately after a step. Review the generated JSON before publishing, and use `recipes get` to inspect existing recipes for the exact device-specific mode schema your cooker uses.
 
-Machine modes can be retained with a hidden Markdown annotation such as `<!-- mc-mode: {"type":"slow_cooking","deviceSettings":[{"time":900,"temperature":50,"order":0}]} -->`. Legacy `mc-ingredient` annotations are still accepted, but new ingredient lines should use the readable text syntax above. When publishing, declared images are passed to the CLI's image-upload options for both creation and update; the generated payload never reuses old API media IDs.
+For example, put this immediately after the corresponding numbered step:
+
+````md
+1. **Simmer**: Cook gently.
+   ```json
+   {
+     "type": "slow_cooking",
+     "deviceSettings": [{"time": 900, "temperature": 50, "order": 0}]
+   }
+   ```
+````
+
+The older hidden `mc-mode` annotation remains accepted when converting existing Markdown. Legacy `mc-ingredient` annotations are also accepted, but new ingredient lines should use the readable text syntax above. When publishing, declared images are passed to the CLI's image-upload options for both creation and update; the generated payload never reuses old API media IDs.
 
 ## Use in a cookbook repository
 
