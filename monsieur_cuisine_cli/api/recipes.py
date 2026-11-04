@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import mimetypes
 import re
 import time
@@ -20,6 +21,7 @@ _VIEWER_LANG = re.compile(
 )
 _MEDIA_READY_TIMEOUT = 60
 _MEDIA_POLL_INTERVAL = 2
+_PUBLIC_RECIPE_SEARCH_ENDPOINT = '/api/v1/recipes/search/page/'
 
 
 def _call_api(*args, **kwargs) -> object | None:
@@ -274,6 +276,50 @@ def list_my_recipes(
         config_path=config_path,
         session_file=session_file,
     )
+
+
+def search_public_recipes(
+    query: str,
+    page: int = 1,
+    *,
+    language: str = 'en-US',
+) -> dict:
+    """Search public recipes without requiring an authenticated account session."""
+    if not query.strip():
+        raise RuntimeError('Search query cannot be empty.')
+    if page < 1:
+        raise RuntimeError('Page must be 1 or greater.')
+
+    params = urllib.parse.urlencode(
+        {
+            'q': query,
+            'sortBy[0][field]': 'lastUpdated',
+            'sortBy[0][direction]': 'DESC',
+        }
+    )
+    url = f'{auth.API_BASE}{_PUBLIC_RECIPE_SEARCH_ENDPOINT}{page}?{params}'
+    request = urllib.request.Request(
+        url,
+        headers={
+            'Accept': 'application/json',
+            'Accept-Language': language,
+            'User-Agent': 'Mozilla/5.0 (compatible; monsieur-cuisine-cli)',
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            result = json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode('utf-8', errors='replace')
+        raise RuntimeError(f'Public recipe search failed (HTTP {exc.code}): {detail}') from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f'Could not reach public recipe search: {exc.reason}') from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError('Public recipe search returned an unexpected non-JSON response.') from exc
+
+    if not isinstance(result, dict) or not isinstance(result.get('data'), dict):
+        raise RuntimeError('Public recipe search returned an unexpected response.')
+    return result['data']
 
 
 def list_my_recipes_v1(

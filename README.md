@@ -58,7 +58,16 @@ monsieur-cuisine-cli recipes list --page 2 --size 50
 monsieur-cuisine-cli recipes get 238467
 ```
 
-By default, recipe lists print a compact title, ID, and status summary, while recipe details show the main fields. Add `--json` to `profile`, `api`, `recipes url`, `recipes list`, `recipes get`, `recipes create`, or `recipes update` to print normalized response data as JSON.
+Search the public recipe catalogue without signing in. The global `--lang` option selects the catalogue language:
+
+```sh
+monsieur-cuisine-cli --lang pt-PT recipes search 'puré de maçã'
+monsieur-cuisine-cli --lang pt-PT recipes search 'puré de maçã' --page 2
+```
+
+Add `--json` for the paginated API response. This searches public recipes; `recipes list` continues to list recipes from your own account.
+
+By default, recipe lists print a compact title, ID, and status summary, while recipe details show the main fields. Add `--json` to `profile`, `api`, `recipes url`, `recipes search`, `recipes list`, `recipes get`, `recipes create`, or `recipes update` to print response data as JSON.
 
 To export one of your recipes in the write-payload shape accepted by `recipes create` and `recipes update`, use `--backup`. It converts expanded response fields (such as category and device objects) to their write-form IDs and removes response-only metadata. The result is JSON and can be saved for later:
 

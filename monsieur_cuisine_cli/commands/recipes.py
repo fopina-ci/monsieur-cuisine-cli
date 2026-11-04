@@ -25,6 +25,36 @@ class Url(ContextProperties, OutputProperties, Recipes.Command):
         emit(recipe, self.json)
 
 
+class Search(ContextProperties, OutputProperties, Recipes.Command):
+    """Search public recipes without signing in."""
+
+    query: str = classyclick.Argument(help='Words to search for in public recipe titles and content.')
+    page: int = classyclick.Option(default=1, help='Page number (starting at 1).')
+
+    def __call__(self):
+        try:
+            result = recipes.search_public_recipes(self.query, self.page, language=self.language)
+        except RuntimeError as exc:
+            raise click.ClickException(str(exc)) from exc
+        if self.json:
+            emit(result, True)
+            return
+
+        recipe_list = result.get('recipes', [])
+        click.echo(
+            f'Public recipes: {len(recipe_list)} results on page {result.get("currentPage", self.page)} '
+            f'of {result.get("totalPage", "?")} ({result.get("total", "?")} total)'
+        )
+        for recipe in recipe_list:
+            if not isinstance(recipe, dict):
+                click.echo(f'- {recipe}')
+                continue
+            author = recipe.get('author')
+            author_name = author.get('name') if isinstance(author, dict) else None
+            suffix = f'; by {author_name}' if author_name else ''
+            click.echo(f'- {recipe.get("name", "Untitled")} (ID: {recipe.get("id", "?")}{suffix})')
+
+
 class Create(ContextProperties, OutputProperties, Recipes.Command):
     """Create a recipe from a JSON payload using the v3 API."""
 
