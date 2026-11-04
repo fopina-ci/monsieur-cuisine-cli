@@ -35,7 +35,10 @@ def recipe_response():
                         {
                             'title': 'Tomato soup',
                             'description': 'Cook the tomatoes.',
-                            'mode': {'type': 'slow_cooking', 'deviceSettings': [{'time': 900, 'order': 0}]},
+                            'deviceSetting': {
+                                'mode': 'slow_cooking',
+                                'settings': [{'time': 900, 'order': 0}],
+                            },
                         }
                     ],
                 }
@@ -53,7 +56,19 @@ def test_recipe_response_exports_to_cookbook_markdown_and_round_trips(recipe_res
     assert '| servings | 2 (servings) |' in text
     assert '| recipeId |' not in text
     assert '- Tomatoes — 800 g' in text
-    assert '<!-- mc-mode: {"type":"slow_cooking","deviceSettings":[{"time":900,"order":0}]} -->' in text
+    assert (
+        '   ```json\n'
+        '   {\n'
+        '     "type": "slow_cooking",\n'
+        '     "deviceSettings": [\n'
+        '       {\n'
+        '         "time": 900,\n'
+        '         "order": 0\n'
+        '       }\n'
+        '     ]\n'
+        '   }\n'
+        '   ```'
+    ) in text
 
     # Fetching a recipe exports its text and metadata, but the cookbook still
     # needs a local details photo before it is publishable. Model the author
