@@ -83,6 +83,20 @@ def test_recipe_response_exports_to_cookbook_markdown_and_round_trips(recipe_res
     assert payload['servingSizes'][0]['steps'][0]['mode']['deviceSettings'] == [{'order': 0, 'time': 900}]
 
 
+def test_null_preparation_time_exports_and_round_trips(recipe_response, tmp_path):
+    recipe_response['recipe']['servingSizes'][0]['preparationTime'] = None
+    path = write_markdown_file(recipe_response, 'https://example.com/recipe/tomato-soup', tmp_path)
+    text = path.read_text(encoding='utf-8')
+    assert '| preparationTime | null |' in text
+
+    image = tmp_path / 'details.png'
+    image.write_bytes((Path(__file__).parent / 'action-fixtures/assets/tiny.png').read_bytes())
+    path.write_text(text.replace('## Recipe', '![Details photo](details.png)\n\n## Recipe'), encoding='utf-8')
+
+    payload, _, _, _ = parse_recipe(path)
+    assert payload['servingSizes'][0]['preparationTime'] is None
+
+
 def test_device_mode_markdown_uses_pt_pt_ui_terms_and_round_trips(recipe_response, tmp_path):
     recipe_response['recipe']['languageLocale'] = 'pt-PT'
     recipe_response['recipe']['complexity'] = {'id': 203, 'name': 'fácil'}

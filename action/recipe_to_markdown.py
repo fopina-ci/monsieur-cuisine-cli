@@ -229,9 +229,15 @@ def write_markdown_file(
         # ownership check. The get action always supplies the checked result.
         metadata.append(('recipeId', requested_recipe.strip()))
     for field in ('preparationTime', 'readyInTime'):
-        value = serving.get(field, recipe.get(field))
-        if value is not None:
-            metadata.append((field, value))
+        if field in serving:
+            value = serving[field]
+        elif field in recipe:
+            value = recipe[field]
+        else:
+            continue
+        # Preserve explicit null from the API: it means unknown/not provided.
+        if value is not None or field == 'preparationTime':
+            metadata.append((field, 'null' if value is None else value))
 
     groups = serving.get('ingredientGroups') or []
     if groups and isinstance(groups[0], dict) and groups[0].get('name'):

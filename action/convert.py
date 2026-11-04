@@ -199,7 +199,6 @@ def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None
         'devicetypeids',
         'servings',
         'complexityid',
-        'preparationtime',
         'readyintime',
         'ingredientgroupname',
     )
@@ -212,10 +211,10 @@ def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None
         raise ValueError('add at least one item under ## Ingredients')
     if not steps:
         raise ValueError('add at least one numbered item under ## Steps')
-    for field in ('preparationtime', 'readyintime'):
-        if metadata[field] < 1:
-            label = 'preparationTime' if field == 'preparationtime' else 'readyInTime'
-            raise ValueError(f'{label} must be at least 1')
+    if metadata.get('preparationtime') is not None and metadata['preparationtime'] < 1:
+        raise ValueError('preparationTime must be at least 1 when provided')
+    if metadata['readyintime'] < 1:
+        raise ValueError('readyInTime must be at least 1')
     if not metadata['ingredientgroupname'].strip():
         raise ValueError('ingredientGroupName must be a non-empty value')
     if details_image_path is None:
@@ -256,7 +255,7 @@ def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None
                 'isDefault': True,
                 'unit': serving_unit,
                 'instruction': '',
-                'preparationTime': int(metadata.get('preparationtime', 0)),
+                'preparationTime': metadata.get('preparationtime'),
                 'readyInTime': int(metadata.get('readyintime', 0)),
                 'ingredientGroups': ingredient_groups,
                 'steps': steps,
@@ -418,6 +417,8 @@ def _parse_metadata_value(field: str, value: str, locale: str = 'en-US'):
             link = re.fullmatch(r'\[([1-9][0-9]*)\]\(https?://[^)]+\)', value)
             if link:
                 value = link.group(1)
+        elif field == 'preparationtime' and value.casefold() == 'null':
+            return None
         return int(value)
     if field == 'complexityid':
         try:
