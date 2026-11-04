@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Write a fetched recipe response in the cookbook Markdown format."""
 
-import json
 import mimetypes
 import re
 import unicodedata
 from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
+
+from action.mode_markdown import render_mode
 
 
 def _markdown(value: object) -> str:
@@ -294,8 +295,7 @@ def write_markdown_file(
         line = f'{index}. **{step_title}**: {description}'
         lines.append(line)
         if isinstance(step.get('mode'), dict):
-            mode = json.dumps(step['mode'], ensure_ascii=False, indent=2)
-            lines.extend(['', '   ```json', *[f'   {part}' for part in mode.splitlines()], '   ```'])
+            lines.extend(['', f'   {render_mode(step["mode"], locale)}'])
 
     nutrients = recipe.get('nutrients') or []
     if nutrients:

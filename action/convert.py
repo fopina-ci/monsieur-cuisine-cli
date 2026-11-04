@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from action.mode_markdown import parse_mode
 from monsieur_cuisine_cli.api.recipe_validation import (
     canonical_locale,
     resolve_markdown_option,
@@ -168,11 +169,17 @@ def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None
         mode = json.loads(annotation.group(1)) if annotation else None
         if annotation:
             item = item[: annotation.start()].strip()
-        if index < len(step_lines) and step_lines[index].casefold() in {'```json', '```'}:
+        if index < len(step_lines) and step_lines[index].strip().startswith('**'):
+            try:
+                mode = parse_mode(step_lines[index].strip(), locale)
+            except ValueError as exc:
+                raise ValueError(f'invalid device mode on step {len(steps) + 1}: {exc}') from exc
+            index += 1
+        elif index < len(step_lines) and step_lines[index].strip().casefold() in {'```json', '```'}:
             index += 1
             mode_lines = []
-            while index < len(step_lines) and step_lines[index] != '```':
-                mode_lines.append(step_lines[index])
+            while index < len(step_lines) and step_lines[index].strip() != '```':
+                mode_lines.append(step_lines[index].strip())
                 index += 1
             if index >= len(step_lines):
                 raise ValueError('device settings code block is missing its closing fence')
