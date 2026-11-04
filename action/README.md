@@ -2,6 +2,8 @@
 
 This composite GitHub Action validates Markdown recipes, prepares draft recipes during cookbook pull requests, publishes recipes after merge, and fetches existing recipes.
 
+For a ready-made repository to store your recipes, start from the [Monsieur Cuisine cookbook template](https://github.com/fopina/monsieur-cuisine-cookbook-template). This guide remains the reference for the recipe format, validation rules, and action operations.
+
 ## Recipe format
 
 Store recipes as `.md` files under `recipes/`. Use the first-level Markdown heading (`#`) as the recipe title. The text immediately after it is the description, and an image immediately after that text is used as the details photo. The action creates an 800×600 thumbnail from a top-left 4:3 crop of that image; when the source is smaller, it keeps the largest available 4:3 crop without enlarging it. Put the other recipe metadata in a visible Markdown table under `## Recipe`, then add `## Ingredients` and `## Steps` sections.
