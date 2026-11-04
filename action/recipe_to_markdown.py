@@ -293,9 +293,8 @@ def write_markdown_file(
         description = _markdown(step.get('description'))
         line = f'{index}. **{step_title}**: {description}'
         lines.append(line)
-        step_mode = step.get('mode')
-        if isinstance(step_mode, dict) and str(step_mode.get('type') or '').casefold() != 'scale':
-            mode = json.dumps(step_mode, ensure_ascii=False, indent=2)
+        if isinstance(step.get('mode'), dict):
+            mode = json.dumps(step['mode'], ensure_ascii=False, indent=2)
             lines.extend(['', '   ```json', *[f'   {part}' for part in mode.splitlines()], '   ```'])
 
     nutrients = recipe.get('nutrients') or []
