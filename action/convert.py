@@ -169,7 +169,7 @@ def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None
         mode = json.loads(annotation.group(1)) if annotation else None
         if annotation:
             item = item[: annotation.start()].strip()
-        if index < len(step_lines) and step_lines[index].strip().startswith('**'):
+        if index < len(step_lines) and re.match(r'^\*\*(?:Mode|Modo):\*\*', step_lines[index].strip(), re.IGNORECASE):
             try:
                 mode = parse_mode(step_lines[index].strip(), locale)
             except ValueError as exc:

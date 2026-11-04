@@ -178,7 +178,8 @@ def render_mode(mode: dict, locale: str) -> str:
 
     # Keep the API enum visible for exact round-tripping, while leading with
     # the same localized mode label shown by the cooker UI.
-    return f'**{name}** (`{mode_type}`)' + (f' · {" · ".join(fields)}' if fields else '')
+    marker = 'Modo' if language == 'pt' else 'Mode'
+    return f'**{marker}:** **{name}** (`{mode_type}`)' + (f' · {" · ".join(fields)}' if fields else '')
 
 
 def _parse_value(field: str, value: str, language: str) -> object:
@@ -200,23 +201,33 @@ def _parse_value(field: str, value: str, language: str) -> object:
             number = float(match.group(1).replace(',', '.')) * 60
         return int(number) if number.is_integer() else number
     if field == 'reverse':
-        return value.casefold() in {'left', 'esquerda'}
+        if value.casefold() in {'left', 'esquerda'}:
+            return True
+        if value.casefold() in {'right', 'direita'}:
+            return False
+        raise ValueError(f'unsupported direction value {value!r}')
     if field == 'turbo':
-        return value.casefold() in {'on', 'ativo'}
+        if value.casefold() in {'on', 'ativo'}:
+            return True
+        if value.casefold() in {'off', 'inativo'}:
+            return False
+        raise ValueError(f'unsupported turbo value {value!r}')
     return value
 
 
 def parse_mode(line: str, locale: str) -> dict:
     """Parse a rendered localized mode line to the recipe mode structure."""
     language = _language(locale)
-    match = re.fullmatch(r'\*\*(.+?)\*\*(?:\s+\(`([^`]+)`\))?(?:\s*·\s*(.*))?', line.strip())
+    marker = re.match(r'^\*\*(?:Mode|Modo):\*\*\s+', line.strip(), re.IGNORECASE)
+    if not marker:
+        raise ValueError('device mode must start with **Mode:** or **Modo:**')
+    mode_line = line.strip()[marker.end() :]
+    match = re.fullmatch(r'\*\*(.+?)\*\*\s+\(`([^`]+)`\)(?:\s*·\s*(.*))?', mode_line)
     if not match:
         raise ValueError('device mode must use the semantic Markdown format')
 
-    name, explicit_mode_type, field_text = match.groups()
-    mode_type = explicit_mode_type or next(
-        (key for key, label in _MODE_LABELS[language].items() if label == name), None
-    )
+    name, mode_type, field_text = match.groups()
+    mode_type = mode_type or next((key for key, label in _MODE_LABELS[language].items() if label == name), None)
     if mode_type is None and name.startswith('Mode: '):
         mode_type = name[6:]
     if mode_type is None:

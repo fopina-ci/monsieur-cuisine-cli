@@ -56,7 +56,7 @@ def test_recipe_response_exports_to_cookbook_markdown_and_round_trips(recipe_res
     assert '| servings | 2 (servings) |' in text
     assert '| recipeId |' not in text
     assert '- Tomatoes — 800 g' in text
-    assert '   **Slow cooking** (`slow_cooking`) · Duration: 15 min' in text
+    assert '   **Mode:** **Slow cooking** (`slow_cooking`) · Duration: 15 min' in text
 
     # Fetching a recipe exports its text and metadata, but the cookbook still
     # needs a local details photo before it is publishable. Model the author
@@ -101,10 +101,10 @@ def test_device_mode_markdown_uses_pt_pt_ui_terms_and_round_trips(recipe_respons
     path = write_markdown_file(recipe_response, '10219429', tmp_path)
     text = path.read_text(encoding='utf-8')
     assert (
-        '**Cozedura personalizada** (`customized`) · Temperatura: 100 °C · Duração: 8 min. · Velocidade: 2 · Direção: Direita'
+        '**Modo:** **Cozedura personalizada** (`customized`) · Temperatura: 100 °C · Duração: 8 min. · Velocidade: 2 · Direção: Direita'
         in text
     )
-    assert '**Balança** (`scale`) · Peso: 20 g' in text
+    assert '**Modo:** **Balança** (`scale`) · Peso: 20 g' in text
     assert '3. **Mexer**: Mexa.' in text
     assert '**Mode**' not in text
 
@@ -121,6 +121,16 @@ def test_device_mode_markdown_uses_pt_pt_ui_terms_and_round_trips(recipe_respons
     }
     assert steps[1]['mode'] == {'type': 'scale', 'deviceSettings': [{'order': 0, 'weight': 20}]}
     assert steps[2]['mode'] is None
+
+
+def test_device_mode_marker_is_required_and_validated():
+    from action.mode_markdown import parse_mode
+
+    with pytest.raises(ValueError, match=r'must start with \*\*Mode:\*\* or \*\*Modo:\*\*'):
+        parse_mode('**Cozedura personalizada** (`customized`) · Velocidade: 2', 'pt-PT')
+
+    with pytest.raises(ValueError, match='unsupported direction'):
+        parse_mode('**Modo:** **Cozedura personalizada** (`customized`) · Direção: Frente', 'pt-PT')
 
 
 def test_numeric_recipe_get_keeps_recipe_id_and_refuses_overwrite(recipe_response, tmp_path):
