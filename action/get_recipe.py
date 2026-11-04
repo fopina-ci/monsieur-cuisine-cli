@@ -21,7 +21,7 @@ def main() -> None:
     if not recipe:
         raise ValueError('recipe must be a positive recipe ID or a full Monsieur Cuisine recipe URL')
     if not session_token:
-        raise ValueError('session_token is required to fetch a recipe; pass the accessToken from session.json')
+        raise ValueError('session_token is required to fetch a recipe; pass the API access token from your CLI session')
     if not secret_writer:
         raise ValueError('secrets_write_token is required to persist a refreshed MC_API_ACCESS_TOKEN.')
 

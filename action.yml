@@ -24,7 +24,7 @@ inputs:
     description: Optional recipe ID or full Monsieur Cuisine recipe URL to fetch instead of converting Markdown files.
     required: false
   session_token:
-    description: CLI API access token from session.json, required for get, draft, and publish operations.
+    description: Monsieur Cuisine API access token, required for get, draft, and publish operations.
     required: false
   secrets_write_token:
     description: Token with Actions secrets write permission, required for get, draft, and publish operations so refreshed MC_API_ACCESS_TOKEN values are persisted.

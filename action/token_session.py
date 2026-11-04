@@ -49,12 +49,20 @@ def _set_repository_secret(token: str, secret_writer: str) -> None:
 
 @contextmanager
 def temporary_session(token: str, secret_writer: str, operation: str) -> Iterator[Path]:
-    """Yield a private temporary session file and persist any rotated token on exit."""
+    """Initialize a private CLI session and persist any rotated token on exit."""
     require_api_tokens(token, secret_writer, operation)
     with tempfile.TemporaryDirectory(prefix=f'mc-{operation}-') as temp_dir:
         session_file = Path(temp_dir) / 'session.json'
-        session_file.write_text(json.dumps({'accessToken': token}), encoding='utf-8')
-        session_file.chmod(0o600)
+        result = subprocess.run(
+            ['monsieur-cuisine-cli', '--session-file', str(session_file), 'auth', 'set-token'],
+            input=token,
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+        if result.returncode:
+            detail = result.stderr.strip()
+            raise RuntimeError(detail or 'Could not initialize the temporary API session with auth set-token.')
         try:
             yield session_file
         finally:
