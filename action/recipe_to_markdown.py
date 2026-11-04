@@ -8,7 +8,10 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
-from action.mode_markdown import render_mode
+try:
+    from .mode_markdown import render_mode
+except ImportError:  # The action entry point imports this file as a top-level module.
+    from mode_markdown import render_mode
 
 
 def _markdown(value: object) -> str:

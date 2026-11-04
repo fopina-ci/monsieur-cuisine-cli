@@ -48,6 +48,13 @@ def recipe_response():
     }
 
 
+def test_recipe_exporter_imports_from_action_script_directory(monkeypatch):
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / 'action'))
+    import recipe_to_markdown
+
+    assert callable(recipe_to_markdown.write_markdown_file)
+
+
 def test_recipe_response_exports_to_cookbook_markdown_and_round_trips(recipe_response, tmp_path):
     path = write_markdown_file(recipe_response, 'https://example.com/en/recipe/tomato-soup', tmp_path)
 
