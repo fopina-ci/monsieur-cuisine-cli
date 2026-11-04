@@ -90,7 +90,9 @@ class SetToken(ContextProperties, Auth.Command):
 
     def __call__(self):
         stdin = click.get_text_stream('stdin')
-        token = stdin.read().strip() if not stdin.isatty() else click.prompt('API access token', hide_input=True).strip()
+        token = (
+            stdin.read().strip() if not stdin.isatty() else click.prompt('API access token', hide_input=True).strip()
+        )
         if not token:
             raise click.ClickException('No API access token supplied.')
 
