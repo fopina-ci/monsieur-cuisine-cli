@@ -13,7 +13,7 @@ import uuid
 from pathlib import Path
 
 from . import auth
-from .recipe_validation import validate_recipe_options
+from .recipe_validation import validate_nutrient_amounts, validate_recipe_options
 
 _RECIPE_ID = re.compile(r'["\']?recipeId["\']?\s*:\s*["\']?(\d+)', re.IGNORECASE)
 _VIEWER_LANG = re.compile(
@@ -166,6 +166,11 @@ def _validate_recipe_write_payload(payload: dict, language: str = 'en-US') -> No
         for index, nutrient in enumerate(nutrients):
             if isinstance(nutrient, dict) and 'amountFloat' in nutrient:
                 issues.append(f'nutrients[{index}].amountFloat is response-only; provide amount instead.')
+
+    try:
+        validate_nutrient_amounts(payload)
+    except RuntimeError as exc:
+        issues.append(str(exc).replace('Recipe payload contains invalid nutrient amounts:\n- ', ''))
 
     serving_sizes = payload.get('servingSizes')
     if isinstance(serving_sizes, list):

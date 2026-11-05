@@ -16,6 +16,7 @@ from action.mode_markdown import parse_mode
 from monsieur_cuisine_cli.api.recipe_validation import (
     canonical_locale,
     resolve_markdown_option,
+    validate_nutrient_amounts,
     validate_recipe_options,
 )
 from monsieur_cuisine_cli.locales import RECIPE_FIELD_LABELS
@@ -272,6 +273,7 @@ def parse_recipe(path: Path) -> tuple[dict, int | None, Path | None, Path | None
             payload[field] = metadata[key]
     try:
         validate_recipe_options(payload, locale)
+        validate_nutrient_amounts(payload)
     except RuntimeError as exc:
         raise ValueError(str(exc)) from exc
     return payload, recipe_id, thumbnail_path, details_image_path

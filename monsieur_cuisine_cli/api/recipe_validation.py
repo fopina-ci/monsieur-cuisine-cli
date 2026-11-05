@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
+
 from ..locales import SUPPORTED_LOCALES
 from ..recipe_validation_data import LOCALE_VALIDATION_DATA
 
@@ -10,6 +12,26 @@ _FIELD_TO_GUIDE = {
     'deviceTypeIds': ('device_options', 'id'),
     'complexityId': ('level_options', 'id'),
 }
+
+
+def validate_nutrient_amounts(payload: dict) -> None:
+    """Reject fractional nutrient amounts, which the recipe API does not accept."""
+    issues = []
+    nutrients = payload.get('nutrients')
+    if isinstance(nutrients, list):
+        for index, nutrient in enumerate(nutrients):
+            if not isinstance(nutrient, dict) or 'amount' not in nutrient:
+                continue
+            try:
+                amount = Decimal(str(nutrient['amount']))
+            except (InvalidOperation, ValueError):
+                issues.append(f'nutrients[{index}].amount must be an integer value.')
+                continue
+            if not amount.is_finite() or amount != amount.to_integral_value():
+                issues.append(f'nutrients[{index}].amount must be an integer value.')
+
+    if issues:
+        raise RuntimeError('Recipe payload contains invalid nutrient amounts:\n- ' + '\n- '.join(issues))
 
 
 def canonical_locale(locale: str) -> str:
